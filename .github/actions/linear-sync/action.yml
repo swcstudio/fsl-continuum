@@ -1,0 +1,72 @@
+name: 'Linear Sync'
+description: 'Synchronize GitHub Issues with Linear Epics and Sub-Issues'
+author: 'FSL Continuum'
+
+branding:
+  icon: 'link-2'
+  color: 'purple'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  linear-api-key:
+    description: 'Linear API key'
+    required: true
+  linear-team-id:
+    description: 'Linear team ID'
+    required: true
+  action:
+    description: 'Action to perform: create-epic, update-status, close-epic'
+    required: true
+    default: 'create-epic'
+  issue-number:
+    description: 'GitHub issue number'
+    required: false
+  issue-title:
+    description: 'GitHub issue title'
+    required: false
+  issue-body:
+    description: 'GitHub issue body'
+    required: false
+
+outputs:
+  linear-epic-id:
+    description: 'Created Linear epic ID'
+    value: ${{ steps.sync.outputs.epic-id }}
+  linear-epic-url:
+    description: 'Linear epic URL'
+    value: ${{ steps.sync.outputs.epic-url }}
+  sub-issues-count:
+    description: 'Number of sub-issues created'
+    value: ${{ steps.sync.outputs.sub-issues-count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        if [ ! -d "node_modules" ]; then
+          npm install @linear/sdk @actions/core @actions/github
+        fi
+    
+    - name: Sync with Linear
+      id: sync
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        LINEAR_API_KEY: ${{ inputs.linear-api-key }}
+        LINEAR_TEAM_ID: ${{ inputs.linear-team-id }}
+        ACTION: ${{ inputs.action }}
+        ISSUE_NUMBER: ${{ inputs.issue-number }}
+        ISSUE_TITLE: ${{ inputs.issue-title }}
+        ISSUE_BODY: ${{ inputs.issue-body }}
+      run: |
+        node ${{ github.action_path }}/index.js

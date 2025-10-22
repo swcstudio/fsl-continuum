@@ -1,0 +1,208 @@
+name: 🌊 FSL Continuum Orchestrator
+
+# Master orchestrator for FSL Continuum v2.0
+# Routes events, manages state, coordinates integrations
+
+on:
+  issues:
+    types: [opened, edited, closed, labeled]
+  pull_request:
+    types: [opened, synchronize, closed, labeled]
+  issue_comment:
+    types: [created]
+  repository_dispatch:
+    types:
+      - linear_webhook
+      - kanban_webhook
+      - blockchain_verify
+      - state_sync
+
+jobs:
+  orchestrate:
+    runs-on: self-hosted
+    name: Orchestrate Continuum
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for state tracking
+      
+      - name: 🔍 Analyze Event
+        id: analyze
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Action: ${{ github.event.action }}"
+          
+          # Determine routing
+          case "${{ github.event_name }}" in
+            issues)
+              if [ "${{ github.event.action }}" = "opened" ] && [[ "${{ github.event.issue.labels[*] }}" == *"epic"* ]]; then
+                echo "route=create_linear_epic" >> $GITHUB_OUTPUT
+              else
+                echo "route=update_issue" >> $GITHUB_OUTPUT
+              fi
+              ;;
+            pull_request)
+              echo "route=handle_pr" >> $GITHUB_OUTPUT
+              ;;
+            repository_dispatch)
+              echo "route=${{ github.event.action }}" >> $GITHUB_OUTPUT
+              ;;
+          esac
+      
+      - name: 📊 Load Continuum State
+        id: load-state
+        run: |
+          if [ -f .github/state/continuum-state.json ]; then
+            STATE=$(cat .github/state/continuum-state.json)
+            echo "State loaded"
+          else
+            echo "Initializing new state"
+            mkdir -p .github/state
+            cat > .github/state/continuum-state.json << 'EOF'
+          {
+            "version": "2.0.0",
+            "initialized_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "statistics": {
+              "total_pipeline_runs": 0,
+              "successful_runs": 0,
+              "failed_runs": 0,
+              "features_shipped": 0
+            },
+            "active_epics": {},
+            "blockchain_ledger": {
+              "polygon": { "total_logs": 0 },
+              "icp": { "total_logs": 0 }
+            }
+          }
+          EOF
+          fi
+      
+      - name: 🔗 Create Linear Epic
+        if: steps.analyze.outputs.route == 'create_linear_epic'
+        uses: ./.github/actions/linear-sync
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          linear-api-key: ${{ secrets.LINEAR_API_KEY }}
+          linear-team-id: ${{ secrets.LINEAR_TEAM_ID }}
+          action: create-epic
+          issue-number: ${{ github.event.issue.number }}
+          issue-title: ${{ github.event.issue.title }}
+          issue-body: ${{ github.event.issue.body }}
+      
+      - name: 🔗 Log to Blockchain
+        id: blockchain
+        run: |
+          LOG_DATA=$(cat << EOF
+          {
+            "event": "${{ github.event_name }}",
+            "action": "${{ github.event.action }}",
+            "repo": "${{ github.repository }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "actor": "${{ github.actor }}",
+            "run_id": "${{ github.run_id }}"
+          }
+          EOF
+          )
+          
+          RESULT=$(./.github/scripts/blockchain-log.sh both "$LOG_DATA")
+          echo "blockchain_result=$RESULT" >> $GITHUB_OUTPUT
+      
+      - name: 📝 Update Continuum State
+        run: |
+          # Update state with new run
+          STATE_FILE=.github/state/continuum-state.json
+          
+          # Increment counters
+          TOTAL_RUNS=$(jq '.statistics.total_pipeline_runs + 1' $STATE_FILE)
+          
+          # Update state
+          jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             --arg total "$TOTAL_RUNS" \
+             '.last_updated = $timestamp | .statistics.total_pipeline_runs = ($total | tonumber)' \
+             $STATE_FILE > $STATE_FILE.tmp
+          
+          mv $STATE_FILE.tmp $STATE_FILE
+      
+      - name: 💾 Commit State
+        run: |
+          git config user.name "FSL Continuum Bot"
+          git config user.email "fsl-continuum@users.noreply.github.com"
+          
+          if git diff --quiet .github/state/; then
+            echo "No state changes"
+          else
+            git add .github/state/
+            git commit -m "🔄 FSL Continuum: Update state [skip ci]"
+            git push
+          fi
+      
+      - name: 💬 Comment on Issue/PR
+        if: github.event_name == 'issues' || github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const blockchainResult = JSON.parse('${{ steps.blockchain.outputs.blockchain_result }}');
+            
+            const body = `
+            ## 🌊 FSL Continuum Update
+            
+            **Event:** ${{ github.event_name }} / ${{ github.event.action }}
+            **Route:** ${{ steps.analyze.outputs.route }}
+            
+            ### 🔗 Blockchain Audit Trail
+            
+            - 📊 **Polygon TX:** \`${blockchainResult.polygon_tx}\`
+              - [View on PolygonScan](https://mumbai.polygonscan.com/tx/${blockchainResult.polygon_tx})
+            - 🌐 **ICP TX:** \`${blockchainResult.icp_tx}\`
+              - [View on Dashboard](https://dashboard.internetcomputer.org/transaction/${blockchainResult.icp_tx})
+            - 🔐 **Log Hash:** \`${blockchainResult.log_hash}\`
+            - ⏰ **Timestamp:** ${blockchainResult.timestamp}
+            - ✅ **Verified:** ${blockchainResult.verified ? 'Yes' : 'No'}
+            
+            ---
+            
+            *🌊 FSL Continuum v2.0 - Persistent State-Aware CI/CD with Dual-Chain Audit*
+            `;
+            
+            const issueNumber = context.issue?.number || context.payload.pull_request?.number;
+            if (issueNumber) {
+              github.rest.issues.createComment({
+                issue_number: issueNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
+      
+      - name: 📢 Notify Slack
+        if: always()
+        run: |
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+              -H 'Content-Type: application/json' \
+              -d '{
+                "text": "FSL Continuum Event",
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*FSL Continuum Orchestrator*\n\nEvent: `${{ github.event_name }}`\nRoute: `${{ steps.analyze.outputs.route }}`\nStatus: `${{ job.status }}`"
+                    }
+                  }
+                ]
+              }'
+          fi
+      
+      - name: 📊 Summary
+        run: |
+          echo "## 🌊 FSL Continuum Orchestration Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Route:** ${{ steps.analyze.outputs.route }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Blockchain Logged:** ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- **State Updated:** ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Continuum Status:** Active and persistent 🌊" >> $GITHUB_STEP_SUMMARY

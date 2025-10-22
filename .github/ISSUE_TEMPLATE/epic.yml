@@ -1,0 +1,93 @@
+name: 🎯 Epic
+description: Create a major feature epic (auto-syncs to Linear with AI decomposition)
+title: "[EPIC] "
+labels: ["epic", "needs-decomposition"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎯 Epic Creation
+        
+        **What happens next:**
+        1. FSL Continuum AI analyzes your epic
+        2. Creates Linear Epic with decomposed sub-issues
+        3. Links GitHub Issue ↔ Linear Epic
+        4. Logs creation to blockchain (Polygon + ICP)
+        5. Updates Rust Kanban terminal
+        6. Notifies Slack #fsl-updates
+        
+  - type: textarea
+    id: objective
+    attributes:
+      label: Epic Objective
+      description: High-level goal of this epic
+      placeholder: Enable users to...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User Story
+      description: As a [user], I want [feature] so that [benefit]
+      placeholder: |
+        As a developer
+        I want to deploy with one command
+        So that I can ship features faster
+    validations:
+      required: true
+      
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What must be true for this epic to be complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: true
+      
+  - type: textarea
+    id: technical-notes
+    attributes:
+      label: Technical Notes
+      description: Technical considerations, architecture, dependencies
+      placeholder: This will require changes to...
+      
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Epic priority
+      options:
+        - 🔥 Critical
+        - ⬆️ High
+        - ➡️ Medium
+        - ⬇️ Low
+    validations:
+      required: true
+      
+  - type: textarea
+    id: estimated-effort
+    attributes:
+      label: Estimated Effort
+      description: Rough estimate (AI will decompose into sub-issues)
+      placeholder: |
+        - Engineering: X weeks
+        - Design: Y days
+        - Testing: Z days
+        
+  - type: checkboxes
+    id: markets
+    attributes:
+      label: 4-Market Integration Required
+      description: Which market practices should be applied?
+      options:
+        - label: 🇺🇸 US (Innovation, AI/ML, Cloud-native)
+        - label: 🇨🇳 China (Scale, Efficiency, Real-time)
+        - label: 🇮🇳 India (Quality, Standards, Comprehensive)
+        - label: 🇯🇵 Japan (Excellence, Craftsmanship, Kaizen)

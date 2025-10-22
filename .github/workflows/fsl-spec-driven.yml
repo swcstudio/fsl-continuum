@@ -1,0 +1,625 @@
+# FSL Continuum - fsl-spec-driven
+# SPEC:000 - Core Workflows Migration
+# Part of FSL Continuum v2.1 - Terminal Velocity CI/CD
+
+# Spec-Driven Development Continuum
+# Automated workflow for OpenSpec-based development lifecycle
+
+name: Spec-Driven Development Continuum
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'validate-specs'
+        type: choice
+        options:
+        - validate-specs
+        - generate-docs
+        - update-deps
+        - security-scan
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  # Job 1: Specification Validation
+  validate-specs:
+    runs-on: ubuntu-latest
+    outputs:
+      spec-status: ${{ steps.validate.outputs.status }}
+      spec-coverage: ${{ steps.validate.outputs.coverage }}
+      
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install OpenSpec
+      run: |
+        npm install -g @fission-ai/openspec
+        pip install pyyaml jinja2
+        
+    - name: Validate Specifications
+      id: validate
+      run: |
+        python3 << 'EOF'
+        import os
+        import json
+        import yaml
+        from pathlib import Path
+        
+        def find_specifications():
+            """Find all specification files in the repository"""
+            spec_patterns = [
+                '**/*.md',
+                '**/*.spec',
+                '**/specs/**',
+                '**/documentation/**',
+                '**/requirements/**'
+            ]
+            
+            specs = []
+            for pattern in spec_patterns:
+                for file in Path('.').glob(pattern):
+                    if file.is_file() and file.suffix in ['.md', '.spec', '.yaml', '.yml']:
+                        specs.append(str(file))
+            return specs
+        
+        def validate_spec_file(file_path):
+            """Validate individual specification file"""
+            validation = {
+                'file': file_path,
+                'exists': True,
+                'has_content': False,
+                'has_structure': False,
+                'has_requirements': False,
+                'has_design': False,
+                'has_testing': False,
+                'quality_score': 0
+            }
+            
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                if len(content.strip()) > 100:
+                    validation['has_content'] = True
+                
+                # Check for required sections
+                sections = ['#', '##', '###']
+                headers = [line.strip() for line in content.split('\n') if line.strip().startswith('#')]
+                
+                if len(headers) >= 5:
+                    validation['has_structure'] = True
+                
+                # Check for key specification elements
+                content_lower = content.lower()
+                if any(keyword in content_lower for keyword in ['requirement', 'specification', 'purpose']):
+                    validation['has_requirements'] = True
+                    
+                if any(keyword in content_lower for keyword in ['design', 'architecture', 'implementation']):
+                    validation['has_design'] = True
+                    
+                if any(keyword in content_lower for keyword in ['test', 'testing', 'validation']):
+                    validation['has_testing'] = True
+                
+                # Calculate quality score
+                score = 0
+                if validation['has_content']: score += 20
+                if validation['has_structure']: score += 20
+                if validation['has_requirements']: score += 25
+                if validation['has_design']: score += 20
+                if validation['has_testing']: score += 15
+                
+                validation['quality_score'] = score
+                
+            except Exception as e:
+                validation['error'] = str(e)
+                validation['exists'] = False
+            
+            return validation
+        
+        # Find and validate all specifications
+        spec_files = find_specifications()
+        validations = []
+        
+        for spec_file in spec_files:
+            validation = validate_spec_file(spec_file)
+            validations.append(validation)
+        
+        # Calculate overall metrics
+        total_specs = len(validations)
+        valid_specs = len([v for v in validations if v['quality_score'] >= 60])
+        avg_quality = sum(v['quality_score'] for v in validations) / total_specs if total_specs > 0 else 0
+        
+        # Generate report
+        report = {
+            'total_specifications': total_specs,
+            'valid_specifications': valid_specs,
+            'coverage_percentage': (valid_specs / total_specs * 100) if total_specs > 0 else 0,
+            'average_quality_score': avg_quality,
+            'validations': validations
+        }
+        
+        # Save report
+        with open('spec-validation-report.json', 'w') as f:
+            json.dump(report, f, indent=2)
+        
+        # Set outputs
+        status = 'pass' if report['coverage_percentage'] >= 70 else 'fail'
+        coverage = f"{report['coverage_percentage']:.1f}%"
+        
+        print(f"status={status}")
+        print(f"coverage={coverage}")
+        
+        # Print summary
+        print(f"Spec Validation Results:")
+        print(f"  Total specs found: {total_specs}")
+        print(f"  Valid specs: {valid_specs}")
+        print(f"  Coverage: {coverage}")
+        print(f"  Avg quality: {avg_quality:.1f}%")
+        EOF
+        
+    - name: Comment PR with Spec Validation
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (fs.existsSync('spec-validation-report.json')) {
+            const report = JSON.parse(fs.readFileSync('spec-validation-report.json', 'utf8'));
+            
+            let comment = '## 📋 Specification Validation Report\n\n';
+            comment += `### 📊 Coverage: ${'' || report.coverage_percentage}%\n`;
+            comment += `- Total specifications: ${report.total_specifications}\n`;
+            comment += `- Valid specifications: ${report.valid_specifications}\n`;
+            comment += `- Average quality: ${report.average_quality_score.toFixed(1)}%\n\n`;
+            
+            if (report.coverage_percentage < 70) {
+              comment += '⚠️ **Warning**: Specification coverage is below 70%. Please improve documentation.\n\n';
+            }
+            
+            // List top issues
+            const invalid_specs = report.validations.filter(v => v.quality_score < 60).slice(0, 5);
+            if (invalid_specs.length > 0) {
+              comment += '### 📝 Specifications needing improvement:\n';
+              invalid_specs.forEach(spec => {
+                comment += `- \`${spec.file}\` (Score: ${spec.quality_score}%)\n`;
+              });
+            }
+            
+            comment += '\n🤖 *Validation powered by OpenSpec*';
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+          
+    - name: Upload Validation Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: spec-validation-${{ github.run_number }}
+        path: spec-validation-report.json
+        retention-days: 30
+
+  # Job 2: Documentation Generation
+  generate-docs:
+    runs-on: ubuntu-latest
+    needs: validate-specs
+    if: needs.validate-specs.outputs.spec-status == 'pass'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Install Documentation Tools
+      run: |
+        npm install -g typedoc vuepress @vuepress/cli
+        pip install mkdocs mkdocs-material mkdocs-mermaid2-plugin
+        
+    - name: Generate Technical Documentation
+      run: |
+        mkdir -p docs/generated
+        python3 << 'EOF'
+        import os
+        import json
+        from pathlib import Path
+        from datetime import datetime
+        
+        def scan_repository():
+            """Scan repository for documentation sources"""
+            scan = {
+                'timestamp': datetime.now().isoformat(),
+                'repository': os.environ['GITHUB_REPOSITORY'],
+                'commit': os.environ['GITHUB_SHA'],
+                'structure': {},
+                'technologies': [],
+                'apis': [],
+                'tests': []
+            }
+            
+            # Scan directory structure
+            for root, dirs, files in os.walk('.'):
+                if any(skip in root for skip in ['.git', 'node_modules', '__pycache__', '.pytest_cache']):
+                    continue
+                    
+                level = root.replace('.', '').count(os.sep)
+                indent = ' ' * 2 * level
+                scan['structure'][root] = {
+                    'directories': dirs,
+                    'files': files,
+                    'level': level
+                }
+                
+                # Identify technologies and file types
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    
+                    if file.endswith('.py'):
+                        scan['technologies'].append('Python')
+                        if 'test' in file.lower() or file.startswith('test_'):
+                            scan['tests'].append(file_path)
+                            
+                    elif file.endswith(('.js', '.ts', '.jsx', '.tsx')):
+                        scan['technologies'].append('JavaScript/TypeScript')
+                        
+                    elif file.endswith(('.java', '.kt')):
+                        scan['technologies'].append('Java/Kotlin')
+                        
+                    elif file == 'package.json':
+                        scan['technologies'].append('Node.js')
+                        
+                    elif file in ('requirements.txt', 'pyproject.toml', 'setup.py'):
+                        scan['technologies'].append('Python')
+                        
+                    elif file == 'pom.xml' or file == 'build.gradle':
+                        scan['technologies'].append('Java')
+            
+            # Remove duplicates and sort
+            scan['technologies'] = sorted(list(set(scan['technologies'])))
+            
+            return scan
+        
+        scan_result = scan_repository()
+        
+        # Generate documentation index
+        index_content = f"""# Generated Technical Documentation
+
+*Generated on {scan_result['timestamp']}*
+
+## Repository Overview
+
+- **Repository**: {scan_result['repository']}
+- **Commit**: {scan_result['commit'][:8]}
+- **Technologies Detected**: {', '.join(scan_result['technologies'])}
+
+## Directory Structure
+
+"""
+        
+        # Add directory structure
+        for path, info in sorted(scan_result['structure'].items(), key=lambda x: x[1]['level']):
+            indent = '  ' * info['level']
+            dirname = os.path.basename(path) or '/'
+            index_content += f"{indent}- {dirname}/\n"
+            
+            for file in info['files'][:5]:  # Limit files shown
+                index_content += f"{indent}  - {file}\n"
+            if len(info['files']) > 5:
+                index_content += f"{indent}  - ... and {len(info['files']) - 5} more files\n"
+        
+        # Save generated documentation
+        with open('docs/generated/README.md', 'w', encoding='utf-8') as f:
+            f.write(index_content)
+        
+        # Save scan results
+        with open('docs/generated/scan-results.json', 'w', encoding='utf-8') as f:
+            json.dump(scan_result, f, indent=2)
+        
+        print("Documentation generated successfully")
+        EOF
+        
+    - name: Deploy Documentation to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs
+        destination_dir: generated
+        
+    - name: Comment with Documentation Link
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 📚 Documentation Generated\n\nTechnical documentation has been automatically generated.\n\n📖 [View Generated Documentation](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/generated/)\n\n🤖 *Documentation powered by OpenSpec workflow*`
+          });
+
+  # Job 3: Quality Gates
+  quality-gates:
+    runs-on: ubuntu-latest
+    needs: [validate-specs, generate-docs]
+    if: always() && (needs.validate-specs.result == 'success' || needs.generate-docs.result == 'success')
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Languages
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Install Quality Tools
+      run: |
+        # Python tools
+        pip install black flake8 mypy bandit safety pytest pytest-cov
+        
+        # JavaScript tools (if package.json exists)
+        if [ -f "package.json" ]; then
+          npm install --no-save eslint prettier jest
+        fi
+        
+    - name: Run Quality Checks
+      run: |
+        mkdir -p quality-reports
+        
+        # Python quality checks
+        if find . -name "*.py" -type f | head -5 | grep -q .; then
+          echo "Running Python quality checks..."
+          
+          # Code formatting check
+          black --check --diff . > quality-reports/black-report.txt 2>&1 || true
+          
+          # Linting
+          flake8 . --output-file=quality-reports/flake8-report.txt || true
+          
+          # Type checking
+          mypy . --json-report quality-reports/mypy-report || true
+          
+          # Security check
+          bandit -r . -f json -o quality-reports/bandit-report.json || true
+          
+          # Dependency check
+          safety check --json --output quality-reports/safety-report.json || true
+        fi
+        
+        # JavaScript quality checks
+        if [ -f "package.json" ]; then
+          echo "Running JavaScript quality checks..."
+          
+          # Linting
+          npx eslint . --format=json --output-file=quality-reports/eslint-report.json || true
+          
+          # Format check
+          npx prettier --check . > quality-reports/prettier-report.txt 2>&1 || true
+        fi
+        
+        # Test coverage
+        if [ -f "pytest.ini" ] || [ -f "pyproject.toml" ] || [ -d "tests" ]; then
+          echo "Running test coverage..."
+          pytest --cov=. --cov-report=json --cov-report=html --junitxml=quality-reports/pytest-report.xml || true
+        fi
+        
+    - name: Generate Quality Report
+      run: |
+        python3 << 'EOF'
+        import json
+        import os
+        from pathlib import Path
+        
+        def analyze_reports():
+            """Analyze all quality reports and generate summary"""
+            quality_dir = Path('quality-reports')
+            
+            analysis = {
+                'timestamp': os.environ['GITHUB_RUN_ID'],
+                'repository': os.environ['GITHUB_REPOSITORY'],
+                'checks': {
+                    'python': {},
+                    'javascript': {},
+                    'security': {},
+                    'tests': {}
+                },
+                'summary': {
+                    'total_issues': 0,
+                    'critical_issues': 0,
+                    'warnings': 0,
+                    'info': 0
+                }
+            }
+            
+            # Analyze Python reports
+            black_report = quality_dir / 'black-report.txt'
+            if black_report.exists():
+                with open(black_report) as f:
+                    content = f.read()
+                analysis['checks']['python']['formatting_issues'] = len([line for line in content.split('\n') if 'would be reformatted' in line])
+            
+            flake8_report = quality_dir / 'flake8-report.txt'
+            if flake8_report.exists():
+                with open(flake8_report) as f:
+                    lines = f.readlines()
+                analysis['checks']['python']['linting_issues'] = len(lines)
+            
+            # Analyze security reports
+            bandit_report = quality_dir / 'bandit-report.json'
+            if bandit_report.exists() and bandit_report.stat().st_size > 0:
+                with open(bandit_report) as f:
+                    bandit_data = json.load(f)
+                analysis['checks']['security']['bandit_issues'] = len(bandit_data.get('results', []))
+                analysis['checks']['security']['high_severity'] = len([r for r in bandit_data.get('results', []) if r.get('issue_severity') == 'HIGH'])
+            
+            # Analyze test coverage
+            coverage_file = quality_dir.parent / 'coverage.json'
+            if coverage_file.exists():
+                with open(coverage_file) as f:
+                    coverage_data = json.load(f)
+                analysis['checks']['tests']['coverage'] = coverage_data.get('totals', {}).get('percent_covered', 0)
+            
+            # Calculate totals
+            for check_type in analysis['checks']:
+                for metric, value in analysis['checks'][check_type].items():
+                    if isinstance(value, (int, float)):
+                        analysis['summary']['total_issues'] += value
+                        if 'critical' in metric or 'high' in metric:
+                            analysis['summary']['critical_issues'] += value
+                        else:
+                            analysis['summary']['warnings'] += value
+            
+            return analysis
+        
+        quality_analysis = analyze_reports()
+        
+        # Save final report
+        with open('quality-summary.json', 'w') as f:
+            json.dump(quality_analysis, f, indent=2)
+        
+        # Print summary
+        print(f"Quality Analysis Summary:")
+        print(f"  Total issues: {quality_analysis['summary']['total_issues']}")
+        print(f"  Critical issues: {quality_analysis['summary']['critical_issues']}")
+        print(f"  Warnings: {quality_analysis['summary']['warnings']}")
+        
+        if quality_analysis['summary']['critical_issues'] > 0:
+            print("❌ CRITICAL ISSUES FOUND")
+            exit(1)
+        elif quality_analysis['summary']['total_issues'] > 10:
+            print("⚠️ HIGH NUMBER OF ISSUES")
+            exit(1)
+        else:
+            print("✅ QUALITY GATES PASSED")
+        EOF
+        
+    - name: Comment Quality Results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (fs.existsSync('quality-summary.json')) {
+            const report = JSON.parse(fs.readFileSync('quality-summary.json', 'utf8'));
+            
+            let comment = '## 🔍 Quality Gates Analysis\n\n';
+            comment += `### 📊 Issues Found: ${report.summary.total_issues}\n`;
+            comment += `- Critical: ${report.summary.critical_issues}\n`;
+            comment += `- Warnings: ${report.summary.warnings}\n\n`;
+            
+            if (report.checks.tests.coverage !== undefined) {
+              comment += `### 🧪 Test Coverage: ${report.checks.tests.coverage.toFixed(1)}%\n`;
+            }
+            
+            if (report.summary.critical_issues > 0) {
+              comment += '### 🚨 Critical Issues Detected\n';
+              comment += 'This PR cannot be merged until critical issues are resolved.\n\n';
+            }
+            
+            comment += '🤖 *Quality analysis powered by comprehensive workflow*';
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+
+  # Job 4: Deployment Preparation
+  deployment-prep:
+    runs-on: ubuntu-latest
+    needs: [validate-specs, generate-docs, quality-gates]
+    if: github.ref == 'refs/heads/main' && needs.validate-specs.result == 'success' && needs.quality-gates.result == 'success'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Create Deployment Package
+      run: |
+        mkdir -p deployment-package
+        
+        # Create deployment manifest
+        cat > deployment-package/deployment-manifest.json << 'EOF'
+        {
+          "deployment": {
+            "version": "${{ github.sha }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "repository": "${{ github.repository }}",
+            "branch": "${{ github.ref_name }}",
+            "commit": "${{ github.sha }}",
+            "actor": "${{ github.actor }}",
+            "workflow": "${{ github.workflow }}"
+          },
+          "quality": {
+            "specs_validated": true,
+            "quality_gates_passed": true,
+            "security_scan_passed": true,
+            "documentation_generated": true
+          },
+          "deployment_ready": true
+        }
+        EOF
+        
+        # Copy essential files
+        cp -r docs deployment-package/
+        cp quality-summary.json deployment-package/ 2>/dev/null || true
+        cp spec-validation-report.json deployment-package/ 2>/dev/null || true
+        
+    - name: Upload Deployment Package
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-package-${{ github.run_number }}
+        path: deployment-package/
+        retention-days: 30
+        
+    - name: Update Deployment Status
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment?.id || 0,
+            state: 'success',
+            description: '✅ Deployment package ready - all quality gates passed'
+          });

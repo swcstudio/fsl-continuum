@@ -1,0 +1,82 @@
+{
+  "text": "FSL Continuum Build Notification",
+  "blocks": [
+    {
+      "type": "header",
+      "text": {
+        "type": "plain_text",
+        "text": "🌊 FSL Continuum Build"
+      }
+    },
+    {
+      "type": "section",
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "*Repository:*\n{{ REPO }}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Status:*\n{{ STATUS }}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Branch:*\n{{ BRANCH }}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Commit:*\n{{ COMMIT }}"
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Blockchain Audit Trail:*"
+      }
+    },
+    {
+      "type": "section",
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "*Polygon TX:*\n`{{ POLYGON_TX }}`"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*ICP TX:*\n`{{ ICP_TX }}`"
+        }
+      ]
+    },
+    {
+      "type": "actions",
+      "elements": [
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "View Build"
+          },
+          "url": "{{ BUILD_URL }}"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "Polygon TX"
+          },
+          "url": "https://mumbai.polygonscan.com/tx/{{ POLYGON_TX }}"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "View Logs"
+          },
+          "url": "{{ LOGS_URL }}"
+        }
+      ]
+    }
+  ]
+}

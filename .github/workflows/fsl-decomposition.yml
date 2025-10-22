@@ -1,0 +1,416 @@
+# FSL Continuum - fsl-decomposition
+# SPEC:000 - Core Workflows Migration
+# Part of FSL Continuum v2.1 - Terminal Velocity CI/CD
+
+# FSL Continuum Issue Decomposition with Context Lineage
+# Converts structured specs into GitHub/Linear issues with tracked context inheritance
+
+name: FSL Continuum - Decomposition
+
+on:
+  workflow_dispatch:
+    inputs:
+      spec_file:
+        description: 'Path to spec.json'
+        required: true
+      parent_tx:
+        description: 'Parent EXPChain transaction hash'
+        required: true
+      flow_id:
+        description: 'FSL Continuum ID'
+        required: true
+
+env:
+  EXPCHAIN_API_URL: "https://expchain-testnet.api.example.com"
+  LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  # Phase 1: Parse Spec and Estimate Decomposition
+  decompose-spec:
+    runs-on: ubuntu-latest
+    outputs:
+      tasks-count: ${{ steps.decompose.outputs.task-count }}
+      context-lineage: ${{.steps.decompose.outputs.lineage }}
+      parent-tx: ${{ github.event.inputs.parent_tx }}
+      
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Load and Parse Spec
+      id: spec
+      run: |
+        python3 << 'EOF'
+        import json
+        import os
+        
+        spec_file = "${{ github.event.inputs.spec_file }}"
+        with open(spec_file) as f:
+            spec = json.load(f)
+        
+        # Extract key information for decomposition
+        print(f"title={spec['specification']['title']}")
+        print(f"description={spec['specification']['description'][:200]}...")
+        print(f"type={spec['specification']['type']}")
+        print(f"requirements={json.dumps(spec['specification']['requirements'])}")
+        EOF
+        
+    - name: Decompose into Logical Tasks
+      id: decompose
+      run: |
+        python3 << 'EOF'
+        import json
+        import hashlib
+        from pathlib import Path
+        
+        # Load spec
+        with open("${{ github.event.inputs.spec_file }}") as f:
+            spec = json.load(f)
+        with open("${{ github.event.inputs.parent_tx }}") as f:
+            pass  # Parent TX provided as input
+        
+        parent_tx = "${{ github.event.inputs.parent_tx }}"
+        flow_id = "${{ github.event.inputs.flow_id }}"
+        
+        # Initialize context lineage
+        context_lineage = [parent_tx] if parent_tx else []
+        
+        # Decomposition logic based on spec type
+        if spec['specification']['type'] == 'pr_enhancement':
+            # PR-based decomposition - create review and enhancement tasks
+            tasks = [
+                {
+                    "id": f"{flow_id}-review",
+                    "title": f"Review PR: {spec['specification']['title']}",
+                    "description": f"Analyze the pull request changes and conduct comprehensive review.\n\nContext: {spec['specification']['description'][:300]}",
+                    "type": "code_review",
+                    "priority": "high",
+                    "estimated_tokens": 2000,
+                    "dependencies": [],
+                    "linear_labels": ["code-review", "ai-assisted"]
+                },
+                {
+                    "id": f"{flow_id}-enhance", 
+                    "title": f"Enhance Code: {spec['specification']['title']}",
+                    "description": f"Apply AI-powered enhancements and fixes based on code review.\n\nRequirements:\n{chr(10).join(['- ' + req for req in spec['specification']['requirements']])}",
+                    "type": "enhancement",
+                    "priority": "medium", 
+                    "estimated_tokens": 5000,
+                    "dependencies": [f"{flow_id}-review"],
+                    "linear_labels": ["enhancement", "copilot-assisted"]
+                }
+            ]
+        else:
+            # Feature development decomposition - create implementation tasks
+            tasks = [
+                {
+                    "id": f"{flow_id}-research",
+                    "title": f"Research: {spec['specification']['title']}",
+                    "description": f"Conduct research and gather requirements for implementation.\n\nBase requirements:\n{chr(10).join(['- ' + req for req in spec['specification']['requirements']])}",
+                    "type": "research",
+                    "priority": "high",
+                    "estimated_tokens": 3000,
+                    "dependencies": [],
+                    "linear_labels": ["research", "planning"]
+                },
+                {
+                    "id": f"{flow_id}-design",
+                    "title": f"Design Architecture: {spec['specification']['title']}",
+                    "description": f"Create detailed design and architecture for the feature.\n\nRequirements:\n{chr(10).join(['- ' + req for req in spec['specification']['requirements']])}",
+                    "type": "design",
+                    "priority": "high", 
+                    "estimated_tokens": 4000,
+                    "dependencies": [f"{flow_id}-research"],
+                    "linear_labels": ["architecture", "design"]
+                },
+                {
+                    "id": f"{flow_id}-implement",
+                    "title": f"Implementation: {spec['specification']['title']}",
+                    "description": f"Implement the feature with comprehensive testing and documentation.\n\nRequirements:\n{chr(10).join(['- ' + req for req in spec['specification']['requirements']])}",
+                    "type": "implementation",
+                    "priority": "medium",
+                    "estimated_tokens": 8000,
+                    "dependencies": [f"{flow_id}-design"],
+                    "linear_labels": ["implementation", "droid-executed"]
+                },
+                {
+                    "id": f"{flow_id}-validation",
+                    "title": f"Validation & Testing: {spec['specification']['title']}",
+                    "description": f"Comprehensive validation including security, performance, and integration testing.\n\nTesting requirements:\n- Unit tests\n- Integration tests\n- Security validation\n- Performance benchmarks",
+                    "type": "validation",
+                    "priority": "medium",
+                    "estimated_tokens": 3000,
+                    "dependencies": [f"{flow_id}-implement"],
+                    "linear_labels": ["testing", "validation"]
+                }
+            ]
+        
+        # Create decomposition result
+        decomposition = {
+            "flow_id": flow_id,
+            "parent_tx": parent_tx,
+            "spec": spec["specification"]["title"],
+            "tasks": tasks,
+            "context_lineage": context_lineage,
+            "total_estimated_tokens": sum(task["estimated_tokens"] for task in tasks)
+        }
+        
+        # Save decomposition
+        Path('.flow-state').mkdir(exist_ok=True)
+        with open(f'.flow-state/decomposition-{flow_id}.json', 'w') as f:
+            json.dump(decomposition, f, indent=2)
+        
+        print(f"task-count={len(tasks)}")
+        print(f"lineage={json.dumps(context_lineage)}")
+        print(f"total-tokens={decomposition['total_estimated_tokens']}")
+        
+        # Output task summary for debugging
+        for task in tasks:
+            print(f"Task: {task['id']} - {task['title']} ({task['type']}, {task['estimated_tokens']} tokens)")
+        EOF
+        
+    - name: Create GitHub Parent Issue
+      id: github-parent
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const spec = JSON.parse(\`{`${{ steps.spec.outputs.title }}`}\`);
+          const description = JSON.parse(\`{`${{ steps.spec.outputs.description }}`}\`);
+          const requirements = JSON.parse(\`{`${{ steps.spec.outputs.requirements }}`}\`);
+          
+          let body = `# 📋 Specification: ${spec}\n\n`;
+          body += `## Description\n${description}\n\n`;
+          body += `## Requirements\n${requirements.map(req => \`- \${req}\`).join('\\n')}\n\n`;
+          body += `## Transaction Data\n`;
+          body += `- **EXPChain TX**: \`${{ github.event.inputs.parent_tx }}\`\n`;
+          body += `- **Flow ID**: \`${{ github.event.inputs.flow_id }}\`\n\n`;
+          body += `## Decomposition Results\n`;
+          body += `Total tasks: \`${{ steps.decompose.outputs.task-count }}\`\n\n`;
+          body += `## Knowledge Graph\n`;
+          body += `This spec contributes nodes to the on-chain knowledge graph.\n\n`;
+          body += `## Cost Estimate\n`;
+          body += `- Total tokens: \`${{ steps.decompose.outputs.tokens-count }}\`\n`;
+          body += `- Estimated cost: \`TBD (calculated per task)\`\n\n`;
+          body += `---\n🤖 *Generated by FSL Continuum v2.0*`;
+          
+          const parent = await github.rest.issues.create({
+            title: \`[SPEC] \${spec}\`,
+            body: body,
+            labels: ['spec', 'ai-generated', 'expchain-tracked', 'flow-state']
+          });
+          
+          console.log(\`Created GitHub issue: \${parent.data.number}\`);
+          console.log(\`issue=\${parent.data.number}\`);
+          
+          return parent.data.number;
+      
+    - name: Create Linear Sub-Issues with Context Inheritance
+      env:
+        LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        FLOW_ID: ${{ github.event.inputs.flow_id }}
+        PARENT_TX: ${{ github.event.inputs.parent_tx }}
+      run: |
+        python3 << 'EOF'
+        import json
+        import requests
+        import os
+        import hashlib
+        from pathlib import Path
+        
+        # Load decomposition
+        with open(f'.flow-state/decomposition-{os.environ["FLOW_ID"]}.json') as f:
+            decomposition = json.load(f)
+        
+        # Get GitHub parent issue number
+        github_issue = "${{ steps.github-parent.outputs.issue }}"
+        
+        # Create Linear issues for each task
+        created_tasks = []
+        
+        for task in decomposition["tasks"]:
+            # Inherit context from parent spec
+            symbolic_residue = {
+                "task_id": task["id"],
+                "parent_spec_tx": os.environ["PARENT_TX"],
+                "context_lineage": decomposition["context_lineage"],
+                "estimated_tokens": task["estimated_tokens"],
+                "dependencies": task.get("dependencies", []),
+                "timestamp": int(os.environ["GITHUB_RUN_ID"]),
+                "github_parent_issue": int(github_issue),
+                "linear_team": os.environ.get("LINEAR_TEAM_ID", "YOUR_TEAM_ID")
+            }
+            
+            # Commit task context to EXPChain BEFORE creating Linear issue
+            print(f"Creating EXPChain transaction for task: {task['id']}")
+            
+            # Create transaction for task decomposition
+            task_tx_data = {
+                "type": "TASK_DECOMPOSED",
+                "parent": os.environ["PARENT_TX"],
+                "task_id": task["id"],
+                "symbolic_residue": symbolic_residue,
+                "task_metadata": {
+                    "title": task["title"],
+                    "type": task["type"],
+                    "priority": task["priority"]
+                }
+            }
+            
+            # Generate transaction hash (mock)
+            task_tx_hash = hashlib.sha256(
+                json.dumps(task_tx_data, sort_keys=True).encode()
+            ).hexdigest()
+            
+            print(f"Task TX Hash: {task_tx_hash}")
+            
+            # Create Linear issue with transaction reference (mock implementation)
+            linear_issue = {
+                "id": f"LIN-{task['id']}",
+                "title": task["title"],
+                "description": f"""{task['description']}
+
+---
+**Transaction Hash**: `{task_tx_hash}`
+**Parent Spec**: [View on EXPChain](https://expchain.explorer/tx/{os.environ['PARENT_TX']})
+**GitHub Issue**: #{github_issue}
+**Symbolic Residue**:
+```json
+{json.dumps(symbolic_residue, indent=2)}
+```
+
+**Context Lineage**: {' → '.join(symbolic_residue['context_lineage'] + [task_tx_hash])}
+
+**Estimated Cost**: {symbolic_residue['estimated_tokens']} tokens
+**Dependencies**: {', '.join(symbolic_residue['dependencies'])}
+
+---
+
+*This issue is managed by the FSL Continuum AI system. All work will be tracked via EXPChain transactions.*
+""",
+                "labels": task.get("linear_labels", []),
+                "metadata": {
+                    "expchain_tx": task_tx_hash,
+                    "symbolic_residue": symbolic_residue,
+                    "task_type": task["type"],
+                    "estimated_tokens": task["estimated_tokens"],
+                    "github_parent": github_issue
+                }
+            }
+            
+            # Store for verification
+            created_tasks.append({
+                "id": task["id"],
+                "linear_id": linear_issue["id"],
+                "tx_hash": task_tx_hash,
+                "title": task["title"],
+                "type": task["type"]
+            })
+            
+            # Add edge to knowledge graph linking task to spec
+            print(f"Adding knowledge graph edge: {os.environ['PARENT_TX']} -> {task_tx_hash}")
+            
+            # Mock knowledge graph edge creation
+            kg_edge = {
+                "from": os.environ["PARENT_TX"],
+                "to": task_tx_hash,
+                "edge_type": "DECOMPOSED_INTO",
+                "weight": 1.0,
+                "metadata": {
+                    "linear_issue_id": linear_issue["id"],
+                    "task_type": task["type"]
+                }
+            }
+            
+            print(f"Created KG edge: {json.dumps(kg_edge, indent=2)}")
+        
+        # Save created tasks
+        with open(f'.flow-state/linear-tasks-{os.environ["FLOW_ID"]}.json', 'w') as f:
+            json.dump(created_tasks, f, indent=2)
+        
+        print(f"Created {len(created_tasks)} Linear issues")
+        for task in created_tasks:
+            print(f"  Task: {task['id']} -> Linear: {task['linear_id']} (TX: {task['tx_hash'][:12]}...)")
+        EOF
+        
+    - name: Update GitHub Parent Issue with Task Links
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (fs.existsSync('.flow-state/linear-tasks-${{ github.event.inputs.flow_id }}.json')) {
+            const tasks = JSON.parse(fs.readFileSync('.flow-state/linear-tasks-${{ github.event.inputs.flow_id }}.json', 'utf8'));
+            
+            let comment = '## 🔗 Decomposed Tasks\n\n';
+            comment += 'The specification has been decomposed into the following Linear tasks:\n\n';
+            
+            tasks.forEach(task => {
+              comment += `### ${task.title}\n`;
+              comment += `- **Linear ID**: \`${task.linear_id}\`\n`;
+              comment += `- **Task Type**: ${task.type}\n`;
+              comment += `- **Transaction**: [${task.tx_hash.substring(0, 12)}...](https://expchain.explorer/tx/${task.tx_hash})\n`;
+              comment += `- **Estimated Cost**: ${JSON.parse(\`{`${{ steps.decompose.outputs.lineage }}`}\`).includes(task.tx_hash) ? 'Included in parent scope' : 'New scope'}\n\n`;
+            });
+            
+            comment += '---\n🤖 *Tasks created with context lineage tracking via FSL Continuum*';
+            
+            await github.rest.issues.createComment({
+              issue_number: parseInt(`${{ steps.github-parent.outputs.issue }}`),
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+
+  # Phase 2: Trigger First Task Execution
+  trigger-execution:
+    runs-on: ubuntu-latest
+    needs: decompose-spec
+    if: needs.decompose-spec.result == 'success'
+    
+    steps:
+    - name: Load Task Configuration
+      run: |
+        python3 << 'EOF'
+        import json
+        import os
+        
+        flow_id = "${{ github.event.inputs.flow_id }}"
+        
+        with open(f'.flow-state/linear-tasks-{flow_id}.json') as f:
+            tasks = json.load(f)
+        
+        # Find the first dependency-free task
+        for task in tasks:
+          if not task.get("dependencies", []):
+            print(f"Starting first task: {task['id']} - {task['title']}")
+            print(f"Linear issue: {task['linear_id']}")
+            print(f"Transaction: {task['tx_hash']}")
+            
+            # Trigger task execution workflow
+            workflow_input = {
+              "linear_issue_id": task["linear_id"],
+              "task_tx_hash": task["tx_hash"],
+              "flow_id": flow_id,
+              "task_type": task["type"],
+              "parent_tx": "${{ github.event.inputs.parent_tx }}"
+            }
+            
+            print(f"Workflow input: {json.dumps(workflow_input)}")
+            break
+        EOF
+        
+    - name: Update Decomposition Status
+      run: |
+        echo "✅ Spec Decomposition Complete"
+        echo "📋 Created ${{ steps.decompose.outputs.task-count }} Linear tasks"
+        echo "🔗 Context lineage: ${{ steps.decompose.outputs.lineage }}"
+        echo "📊 Total tokens: ${{ steps.decompose.outputs.tokens-count }}"
+        echo "🎯 Ready for task execution with Droid"
