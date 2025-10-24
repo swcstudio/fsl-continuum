@@ -22,6 +22,7 @@
 - ✅ **Phase 5:** Cleanup & validation complete
 
 ### 📋 SPEC:000 Resources
+- 🚀 **[QUICKSTART.md](QUICKSTART.md)** - Quick reference guide for this version
 - 🏷️ **[VERSION](VERSION)** - Current version and commit information
 - 📦 **[FEATURES.md](FEATURES.md)** - Complete feature list for this version
 - 📝 [TODO.md](TODO.md) - Phase-by-phase migration checklist (5/5 complete)
