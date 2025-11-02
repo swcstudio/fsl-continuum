@@ -1,0 +1,38 @@
+{
+  "dora_metrics": {
+    "deployments_per_day": 1.4666666666666666,
+    "lead_time_hours": 21.25,
+    "mttr_hours": 2.0000000002222222,
+    "change_failure_rate": 0.09090909090909091,
+    "measurement_period_days": 30,
+    "timestamp": "2025-11-02 14:02:52.964264"
+  },
+  "performance_tier": "high",
+  "bottlenecks": [
+    {
+      "stage": "KanbanStage.IN_PROGRESS",
+      "severity": "critical",
+      "description": "WIP limit reached: 3/3 items",
+      "wip_count": 3,
+      "avg_cycle_time_hours": 12.000000094907408,
+      "recommendation": "Consider: 1) Adding more developers, 2) Breaking down tasks, 3) Removing blockers"
+    },
+    {
+      "stage": "KanbanStage.TESTING",
+      "severity": "critical",
+      "description": "WIP limit reached: 3/2 items",
+      "wip_count": 3,
+      "avg_cycle_time_hours": 14.00000010212963,
+      "recommendation": "Consider: 1) Automated testing (Kaizen), 2) Parallel test execution, 3) Test infrastructure upgrade"
+    }
+  ],
+  "kaizen_status": {
+    "kaizen_achieved": false,
+    "current_score": 80.0,
+    "target_score": 80.07999999999998,
+    "suggestions": [
+      "Improve incident response with automated rollback"
+    ]
+  },
+  "timestamp": "2025-11-02T14:02:52.964635"
+}
