@@ -1,0 +1,42 @@
+{
+  "file": "sample.py",
+  "total_comments": 4,
+  "critical": 1,
+  "warnings": 1,
+  "suggestions": 2,
+  "comments": [
+    {
+      "line_number": 10,
+      "severity": "critical",
+      "category": "security",
+      "message": "Unsafe use of eval/exec detected",
+      "suggestion": "Use safer alternatives like ast.literal_eval",
+      "market_practice": "US \ud83c\uddfa\ud83c\uddf8: OWASP security standards"
+    },
+    {
+      "line_number": 15,
+      "severity": "suggestion",
+      "category": "performance",
+      "message": "Consider list comprehension for better performance",
+      "suggestion": "result = [process(item) for item in items]",
+      "market_practice": "China \ud83c\udde8\ud83c\uddf3: ByteDance efficiency patterns"
+    },
+    {
+      "line_number": 5,
+      "severity": "warning",
+      "category": "maintainability",
+      "message": "Missing docstring for function",
+      "suggestion": "Add comprehensive docstring with parameters and return type",
+      "market_practice": "India \ud83c\uddee\ud83c\uddf3: TCS documentation standards"
+    },
+    {
+      "line_number": 5,
+      "severity": "suggestion",
+      "category": "maintainability",
+      "message": "TODO found - consider completing before merging",
+      "suggestion": "Complete or create follow-up task for long-term quality (Monozukuri: 20-year maintainability)",
+      "market_practice": "Japan \ud83c\uddef\ud83c\uddf5: Monozukuri craftsmanship"
+    }
+  ],
+  "timestamp": "2025-11-02T14:01:51.049703"
+}
