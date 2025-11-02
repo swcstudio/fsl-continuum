@@ -1,0 +1,555 @@
+# BAML Invalid Test Examples
+
+name: "baml_invalid_examples"
+description: "Invalid BAML test examples for error handling testing"
+category: "invalid_data"
+data_type: "baml"
+
+fixtures:
+  - name: "missing_version_field"
+    description: "BAML data with missing version field"
+    input:
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data without version field"
+      boundaries: []
+    expected:
+      success: false
+      error_type: "missing_required_field"
+      error_field: "version"
+      error_message: "Missing required version field"
+    validation_rules:
+      structure_validation: false
+      field_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_version_field"
+        message: "Version field is required"
+
+  - name: "missing_spec_field"
+    description: "BAML data with missing spec field"
+    input:
+      version: "1.0.0-fsl-integration"
+      description: "BAML data without spec field"
+      boundaries: []
+    expected:
+      success: false
+      error_type: "missing_required_field"
+      error_field: "spec"
+      error_message: "Missing required spec field"
+    validation_rules:
+      structure_validation: false
+      field_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_spec_field"
+        message: "Spec field is required"
+
+  - name: "invalid_version_format"
+    description: "BAML data with invalid version format"
+    input:
+      version: "invalid_version_format"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with invalid version format"
+      boundaries: []
+    expected:
+      success: false
+      error_type: "invalid_version_format"
+      error_field: "version"
+      error_message: "Invalid version format"
+    validation_rules:
+      structure_validation: false
+      format_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_valid_version"
+        message: "Version must follow semantic versioning format"
+
+  - name: "invalid_spec_format"
+    description: "BAML data with invalid spec format"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "invalid_spec_format"
+      description: "BAML data with invalid spec format"
+      boundaries: []
+    expected:
+      success: false
+      error_type: "invalid_spec_format"
+      error_field: "spec"
+      error_message: "Invalid spec format"
+    validation_rules:
+      structure_validation: false
+      format_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_valid_spec"
+        message: "Spec must follow BAML specification format"
+
+  - name: "invalid_boundaries_type"
+    description: "BAML data with invalid boundaries type"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with invalid boundaries type"
+      boundaries: "not_a_list"
+    expected:
+      success: false
+      error_type: "invalid_type"
+      error_field: "boundaries"
+      error_message: "Boundaries must be a list"
+    validation_rules:
+      structure_validation: false
+      type_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_boundaries_as_list"
+        message: "Boundaries field must be a list"
+
+  - name: "invalid_boundary_structure"
+    description: "BAML data with invalid boundary structure"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with invalid boundary structure"
+      boundaries:
+        - name: "test_boundary"
+          type: "data"
+          invalid_field: "this should not be here"
+          another_invalid_field: "this also should not be here"
+    expected:
+      success: false
+      error_type: "invalid_boundary_structure"
+      error_field: "boundaries[0]"
+      error_message: "Invalid boundary structure"
+    validation_rules:
+      structure_validation: false
+      boundary_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "remove_invalid_boundary_fields"
+        message: "Boundary contains invalid fields"
+
+  - name: "missing_boundary_name"
+    description: "BAML data with missing boundary name"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with missing boundary name"
+      boundaries:
+        - type: "data"
+          ai_enhanced: true
+    expected:
+      success: false
+      error_type: "missing_required_field"
+      error_field: "boundaries[0].name"
+      error_message: "Missing required name field in boundary"
+    validation_rules:
+      structure_validation: false
+      field_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_boundary_name"
+        message: "Boundary name field is required"
+
+  - name: "missing_boundary_type"
+    description: "BAML data with missing boundary type"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with missing boundary type"
+      boundaries:
+        - name: "test_boundary"
+          ai_enhanced: true
+    expected:
+      success: false
+      error_type: "missing_required_field"
+      error_field: "boundaries[0].type"
+      error_message: "Missing required type field in boundary"
+    validation_rules:
+      structure_validation: false
+      field_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_boundary_type"
+        message: "Boundary type field is required"
+
+  - name: "invalid_boundary_type"
+    description: "BAML data with invalid boundary type"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with invalid boundary type"
+      boundaries:
+        - name: "test_boundary"
+          type: "invalid_boundary_type"
+          ai_enhanced: true
+    expected:
+      success: false
+      error_type: "invalid_boundary_type"
+      error_field: "boundaries[0].type"
+      error_message: "Invalid boundary type"
+    validation_rules:
+      structure_validation: false
+      boundary_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_valid_boundary_type"
+        message: "Boundary type must be one of: data, process, system"
+
+  - name: "invalid_connections_type"
+    description: "BAML data with invalid connections type"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with invalid connections type"
+      boundaries:
+        - name: "test_boundary_1"
+          type: "data"
+          ai_enhanced: true
+        - name: "test_boundary_2"
+          type: "process"
+          ai_enhanced: true
+      connections: "not_a_list"
+    expected:
+      success: false
+      error_type: "invalid_type"
+      error_field: "connections"
+      error_message: "Connections must be a list"
+    validation_rules:
+      structure_validation: false
+      type_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_connections_as_list"
+        message: "Connections field must be a list"
+
+  - name: "invalid_connection_structure"
+    description: "BAML data with invalid connection structure"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with invalid connection structure"
+      boundaries:
+        - name: "test_boundary_1"
+          type: "data"
+          ai_enhanced: true
+        - name: "test_boundary_2"
+          type: "process"
+          ai_enhanced: true
+      connections:
+        - source: "test_boundary_1"
+          target: "test_boundary_2"
+          type: "data_flow"
+          invalid_field: "this should not be here"
+          another_invalid_field: "this also should not be here"
+    expected:
+      success: false
+      error_type: "invalid_connection_structure"
+      error_field: "connections[0]"
+      error_message: "Invalid connection structure"
+    validation_rules:
+      structure_validation: false
+      connection_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "remove_invalid_connection_fields"
+        message: "Connection contains invalid fields"
+
+  - name: "missing_connection_source"
+    description: "BAML data with missing connection source"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with missing connection source"
+      boundaries:
+        - name: "test_boundary_1"
+          type: "data"
+          ai_enhanced: true
+        - name: "test_boundary_2"
+          type: "process"
+          ai_enhanced: true
+      connections:
+        - target: "test_boundary_2"
+          type: "data_flow"
+          ai_enhanced: true
+    expected:
+      success: false
+      error_type: "missing_required_field"
+      error_field: "connections[0].source"
+      error_message: "Missing required source field in connection"
+    validation_rules:
+      structure_validation: false
+      field_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_connection_source"
+        message: "Connection source field is required"
+
+  - name: "missing_connection_target"
+    description: "BAML data with missing connection target"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with missing connection target"
+      boundaries:
+        - name: "test_boundary_1"
+          type: "data"
+          ai_enhanced: true
+        - name: "test_boundary_2"
+          type: "process"
+          ai_enhanced: true
+      connections:
+        - source: "test_boundary_1"
+          type: "data_flow"
+          ai_enhanced: true
+    expected:
+      success: false
+      error_type: "missing_required_field"
+      error_field: "connections[0].target"
+      error_message: "Missing required target field in connection"
+    validation_rules:
+      structure_validation: false
+      field_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_connection_target"
+        message: "Connection target field is required"
+
+  - name: "missing_connection_type"
+    description: "BAML data with missing connection type"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with missing connection type"
+      boundaries:
+        - name: "test_boundary_1"
+          type: "data"
+          ai_enhanced: true
+        - name: "test_boundary_2"
+          type: "process"
+          ai_enhanced: true
+      connections:
+        - source: "test_boundary_1"
+          target: "test_boundary_2"
+          ai_enhanced: true
+    expected:
+      success: false
+      error_type: "missing_required_field"
+      error_field: "connections[0].type"
+      error_message: "Missing required type field in connection"
+    validation_rules:
+      structure_validation: false
+      field_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_connection_type"
+        message: "Connection type field is required"
+
+  - name: "invalid_connection_type"
+    description: "BAML data with invalid connection type"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with invalid connection type"
+      boundaries:
+        - name: "test_boundary_1"
+          type: "data"
+          ai_enhanced: true
+        - name: "test_boundary_2"
+          type: "process"
+          ai_enhanced: true
+      connections:
+        - source: "test_boundary_1"
+          target: "test_boundary_2"
+          type: "invalid_connection_type"
+          ai_enhanced: true
+    expected:
+      success: false
+      error_type: "invalid_connection_type"
+      error_field: "connections[0].type"
+      error_message: "Invalid connection type"
+    validation_rules:
+      structure_validation: false
+      connection_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_valid_connection_type"
+        message: "Connection type must be one of: data_flow, control_flow, semantic_link, dependency"
+
+  - name: "circular_reference_in_boundaries"
+    description: "BAML data with circular reference in boundaries"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with circular reference in boundaries"
+      boundaries:
+        - name: "circular_boundary"
+          type: "data"
+          ai_enhanced: true
+          parent_boundary: "circular_boundary"  # Circular reference
+    expected:
+      success: false
+      error_type: "circular_reference"
+      error_field: "boundaries[0].parent_boundary"
+      error_message: "Circular reference detected in boundaries"
+    validation_rules:
+      structure_validation: false
+      circular_reference_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "resolve_circular_reference"
+        message: "Circular reference in boundaries must be resolved"
+
+  - name: "unknown_boundary_reference_in_connections"
+    description: "BAML data with unknown boundary reference in connections"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with unknown boundary reference in connections"
+      boundaries:
+        - name: "test_boundary"
+          type: "data"
+          ai_enhanced: true
+      connections:
+        - source: "test_boundary"
+          target: "unknown_boundary"  # Unknown boundary reference
+          type: "data_flow"
+          ai_enhanced: true
+    expected:
+      success: false
+      error_type: "unknown_boundary_reference"
+      error_field: "connections[0].target"
+      error_message: "Unknown boundary reference in connections"
+    validation_rules:
+      structure_validation: false
+      reference_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "resolve_unknown_boundary_reference"
+        message: "Unknown boundary reference must be resolved"
+
+  - name: "null_data_input"
+    description: "BAML data with null input"
+    input: null
+    expected:
+      success: false
+      error_type: "null_input"
+      error_field: "input"
+      error_message: "Null input provided"
+    validation_rules:
+      input_validation: false
+    error_scenarios:
+      - type: "input_error"
+        recovery: "provide_valid_input"
+        message: "Input cannot be null"
+
+  - name: "malformed_data_structure"
+    description: "BAML data with malformed structure"
+    input: "not_a_dict"
+    expected:
+      success: false
+      error_type: "malformed_structure"
+      error_field: "input"
+      error_message: "Malformed input structure"
+    validation_rules:
+      structure_validation: false
+      input_validation: false
+    error_scenarios:
+      - type: "input_error"
+        recovery: "provide_valid_structure"
+        message: "Input must be a dictionary"
+
+  - name: "invalid_constraints_type"
+    description: "BAML data with invalid constraints type"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with invalid constraints type"
+      boundaries:
+        - name: "test_boundary"
+          type: "data"
+          ai_enhanced: true
+      constraints: "not_a_list"
+    expected:
+      success: false
+      error_type: "invalid_type"
+      error_field: "constraints"
+      error_message: "Constraints must be a list"
+    validation_rules:
+      structure_validation: false
+      type_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "provide_constraints_as_list"
+        message: "Constraints field must be a list"
+
+  - name: "invalid_constraint_structure"
+    description: "BAML data with invalid constraint structure"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML data with invalid constraint structure"
+      boundaries:
+        - name: "test_boundary"
+          type: "data"
+          ai_enhanced: true
+      constraints:
+        - name: "test_constraint"
+          type: "boundary"
+          scope: ["test_boundary"]
+          invalid_field: "this should not be here"
+          another_invalid_field: "this also should not be here"
+    expected:
+      success: false
+      error_type: "invalid_constraint_structure"
+      error_field: "constraints[0]"
+      error_message: "Invalid constraint structure"
+    validation_rules:
+      structure_validation: false
+      constraint_validation: false
+    error_scenarios:
+      - type: "validation_error"
+        recovery: "remove_invalid_constraint_fields"
+        message: "Constraint contains invalid fields"
+
+error_recovery_rules:
+  missing_required_field:
+    recovery_action: "provide_required_field"
+    auto_recovery: false
+    user_intervention_required: true
+  
+  invalid_type:
+    recovery_action: "provide_correct_type"
+    auto_recovery: false
+    user_intervention_required: true
+  
+  invalid_format:
+    recovery_action: "provide_correct_format"
+    auto_recovery: true
+    user_intervention_required: false
+  
+  circular_reference:
+    recovery_action: "resolve_circular_reference"
+    auto_recovery: true
+    user_intervention_required: false
+  
+  unknown_reference:
+    recovery_action: "resolve_unknown_reference"
+    auto_recovery: false
+    user_intervention_required: true
+  
+  null_input:
+    recovery_action: "provide_valid_input"
+    auto_recovery: false
+    user_intervention_required: true
+  
+  malformed_structure:
+    recovery_action: "provide_valid_structure"
+    auto_recovery: false
+    user_intervention_required: true
+
+error_reporting:
+  include_stack_trace: true
+  include_context_info: true
+  include_suggestions: true
+  log_errors: true
+  error_log_path: "logs/baml_validation_errors.log"

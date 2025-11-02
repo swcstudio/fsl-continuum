@@ -2,10 +2,10 @@
 # SPEC:000 - Core Workflows Migration
 # Part of FSL Continuum v2.1 - Terminal Velocity CI/CD
 
-# GitHub Copilot-Enhanced PR Review Workflow
-# Uses native Copilot capabilities without external API keys
+# Actual GitHub Copilot CLI-Enhanced PR Review Workflow
+# Uses native GitHub Copilot CLI (gh copilot) commands with no external API dependencies
 
-name: GitHub Copilot-Enhanced PR Review
+name: GitHub Copilot CLI-Enhanced PR Review
 
 on:
   pull_request:
@@ -22,6 +22,7 @@ env:
   PR_NUMBER: ${{ github.event.number || github.event.inputs.pr_number }}
   REPO_NAME: ${{ github.repository }}
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+  COPILOT_CLI_VERSION: "latest"
 
 permissions:
   contents: read
@@ -30,11 +31,12 @@ permissions:
   issues: write
 
 jobs:
-  # Job 1: Initialize Copilot Coding Agent
-  initialize-copilot:
+  # Job 1: Initialize GitHub Copilot CLI
+  initialize-github-copilot-cli:
     runs-on: ubuntu-latest
     outputs:
-      agent-initialized: ${{ steps.init.outputs.success }}
+      cli-installed: ${{ steps.setup.outputs.installed }}
+      cli-version: ${{ steps.setup.outputs.version }}
       
     steps:
     - name: Checkout Repository
@@ -43,47 +45,48 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Setup GitHub Copilot Environment
-      id: init
+    - name: Setup GitHub CLI
       run: |
-        echo "Initializing GitHub Copilot coding agent..."
+        echo "Setting up GitHub CLI..."
         
-        # Create copilot setup configuration
-        mkdir -p .github/copilot
-        cat > .github/copilot/setup.yml << 'EOF'
-        # GitHub Copilot Coding Agent Setup
-        repository:
-          name: "${{ env.REPO_NAME }}"
-          context: "PR Review and Code Quality Enhancement"
-          
-        coding_agent:
-          enabled: true
-          auto_approve: false
-          require_review: true
-          
-        review_focus:
-          - security_vulnerabilities
-          - code_quality
-          - performance_impact
-          - test_coverage
-          - documentation_completeness
-          
-        capabilities:
-          - code_analysis
-          - auto_fix_formatting
-          - suggest_improvements
-          - generate_tests
-          - update_documentation
-        EOF
+        # Install GitHub CLI if not already installed
+        if ! command -v gh &> /dev/null; then
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt-get update \
+          && sudo apt-get install gh -y
+        fi
         
-        echo "success=true" >> $GITHUB_OUTPUT
-        echo "Copilot coding agent configured"
+        # Verify installation
+        gh --version
+        gh auth status
+        
+    - name: Install GitHub Copilot CLI Extension
+      id: setup
+      run: |
+        echo "Installing GitHub Copilot CLI extension..."
+        
+        # Install Copilot CLI extension
+        gh extension install github/gh-copilot
+        
+        # Verify Copilot CLI installation
+        COPILOT_VERSION=$(gh copilot --version 2>/dev/null || echo "unknown")
+        echo "version=$COPILOT_VERSION" >> $GITHUB_OUTPUT
+        
+        if [ "$COPILOT_VERSION" != "unknown" ]; then
+          echo "installed=true" >> $GITHUB_OUTPUT
+          echo "✅ GitHub Copilot CLI v$COPILOT_VERSION installed successfully"
+        else
+          echo "installed=false" >> $GITHUB_OUTPUT
+          echo "❌ GitHub Copilot CLI installation failed"
+        fi
 
-  # Job 2: Code Analysis with Copilot
-  copilot-analysis:
+  # Job 2: Code Analysis with GitHub Copilot CLI
+  copilot-cli-analysis:
     runs-on: ubuntu-latest
-    needs: initialize-copilot
-    if: needs.initialize-copilot.outputs.agent-initialized == 'true'
+    needs: initialize-github-copilot-cli
+    if: needs.initialize-github-copilot-cli.outputs.cli-installed == 'true'
     outputs:
       analysis-complete: ${{ steps.analyze.outputs.complete }}
       recommendations: ${{ steps.analyze.outputs.recommendations }}
@@ -94,7 +97,7 @@ jobs:
       with:
         fetch-depth: 0
         
-    - name: Setup Analysis Environment
+    - name: Run GitHub Copilot CLI Analysis
       run: |
         echo "Setting up code analysis environment..."
         

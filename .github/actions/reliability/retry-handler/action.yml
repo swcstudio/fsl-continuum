@@ -1,0 +1,351 @@
+name: 'FSL Reliability - Retry Handler'
+description: 'Intelligent retry handler with exponential backoff and jitter'
+author: 'FSL Continuum Reliability Team'
+branding:
+  icon: 'refresh-cw'
+  color: 'yellow'
+
+inputs:
+  command:
+    description: 'Command to execute (required for execute operation)'
+    required: false
+    type: string
+  operation:
+    description: 'Operation type (execute, config)'
+    required: false
+    default: 'execute'
+    type: choice
+    options: ['execute', 'config']
+  max-retries:
+    description: 'Maximum number of retry attempts'
+    required: false
+    default: '3'
+    type: string
+  base-delay:
+    description: 'Base delay in seconds before first retry'
+    required: false
+    default: '1'
+    type: string
+  max-delay:
+    description: 'Maximum delay in seconds between retries'
+    required: false
+    default: '60'
+    type: string
+  backoff-factor:
+    description: 'Exponential backoff multiplier'
+    required: false
+    default: '2'
+    type: string
+  jitter:
+    description: 'Add jitter to prevent thundering herd'
+    required: false
+    default: 'true'
+    type: boolean
+  retryable-errors:
+    description: 'Comma-separated list of retryable error patterns'
+    required: false
+    default: 'network_timeout,http_5xx,rate_limit_exceeded,temporary_failure,resource_exhausted'
+    type: string
+  non-retryable-errors:
+    description: 'Comma-separated list of non-retryable error patterns'
+    required: false
+    default: 'authentication_failed,authorization_failed,invalid_input,not_found,permission_denied'
+    type: string
+  timeout:
+    description: 'Timeout for each attempt in seconds'
+    required: false
+    default: '300'
+    type: string
+
+outputs:
+  final-result:
+    description: 'Final execution result (success/failure)'
+    value: ${{ steps.execute.outputs.final-result }}
+  total-attempts:
+    description: 'Total number of attempts made'
+    value: ${{ steps.execute.outputs.total-attempts }}
+  total-duration:
+    description: 'Total duration of all attempts in seconds'
+    value: ${{ steps.execute.outputs.total-duration }}
+  error-details:
+    description: 'Details of the final error (if failed)'
+    value: ${{ steps.execute.outputs.error-details }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🔄 Initialize Retry Handler
+      id: init
+      shell: bash
+      run: |
+        echo "::group::🔄 Initializing Retry Handler"
+        
+        OPERATION="${{ inputs.operation }}"
+        MAX_RETRIES="${{ inputs.max-retries }}"
+        BASE_DELAY="${{ inputs.base-delay }}"
+        MAX_DELAY="${{ inputs.max-delay }}"
+        BACKOFF_FACTOR="${{ inputs.backoff-factor }}"
+        JITTER="${{ inputs.jitter }}"
+        RETRYABLE_ERRORS="${{ inputs.retryable-errors }}"
+        NON_RETRYABLE_ERRORS="${{ inputs.non-retryable-errors }}"
+        TIMEOUT="${{ inputs.timeout }}"
+        
+        echo "Operation: $OPERATION"
+        echo "Max Retries: $MAX_RETRIES"
+        echo "Base Delay: ${BASE_DELAY}s"
+        echo "Max Delay: ${MAX_DELAY}s"
+        echo "Backoff Factor: $BACKOFF_FACTOR"
+        echo "Jitter: $JITTER"
+        echo "Timeout: ${TIMEOUT}s"
+        echo "Retryable Errors: $RETRYABLE_ERRORS"
+        echo "Non-Retryable Errors: $NON_RETRYABLE_ERRORS"
+        
+        # Create retry handler directory
+        mkdir -p .github/reliability/retry-handler
+        
+        # Store configuration for later use
+        cat > .github/reliability/retry-handler/config.json << EOF
+        {
+          "max_retries": $MAX_RETRIES,
+          "base_delay": $BASE_DELAY,
+          "max_delay": $MAX_DELAY,
+          "backoff_factor": $BACKOFF_FACTOR,
+          "jitter": $JITTER,
+          "timeout": $TIMEOUT,
+          "retryable_errors": "$(echo $RETRYABLE_ERRORS | tr ',' ' ')",
+          "non_retryable_errors": "$(echo $NON_RETRYABLE_ERRORS | tr ',' ' ')",
+          "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        }
+        EOF
+        
+        echo "✅ Retry handler initialized"
+        echo "::endgroup::"
+    
+    - name: ⚡ Execute with Retry Logic
+      id: execute
+      if: inputs.operation == 'execute'
+      shell: bash
+      run: |
+        echo "::group::⚡ Executing Command with Retry Logic"
+        
+        COMMAND="${{ inputs.command }}"
+        MAX_RETRIES="${{ inputs.max-retries }}"
+        BASE_DELAY="${{ inputs.base-delay }}"
+        MAX_DELAY="${{ inputs.max-delay }}"
+        BACKOFF_FACTOR="${{ inputs.backoff-factor }}"
+        JITTER="${{ inputs.jitter }}"
+        TIMEOUT="${{ inputs.timeout }}"
+        
+        # Parse retryable and non-retryable errors
+        IFS=',' read -ra RETRYABLE_ARRAY <<< "${{ inputs.retryable-errors }}"
+        IFS=',' read -ra NON_RETRYABLE_ARRAY <<< "${{ inputs.non-retryable-errors }}"
+        
+        # Initialize attempt tracking
+        ATTEMPT=1
+        TOTAL_ATTEMPTS=1
+        START_TIME=$(date -u +%s)
+        FINAL_RESULT="failure"
+        ERROR_DETAILS=""
+        
+        echo "🎯 Starting retry logic for: $COMMAND"
+        echo "Max attempts: $((MAX_RETRIES + 1))"
+        echo ""
+        
+        # Execute command with retry logic
+        while [ $ATTEMPT -le $((MAX_RETRIES + 1)) ]; do
+          echo "📍 Attempt $ATTEMPT/$((MAX_RETRIES + 1))"
+          ATTEMPT_START=$(date -u +%s)
+          
+          # Execute command with timeout
+          if timeout "$TIMEOUT" bash -c "$COMMAND"; then
+            # Success
+            ATTEMPT_END=$(date -u +%s)
+            ATTEMPT_DURATION=$((ATTEMPT_END - ATTEMPT_START))
+            
+            echo "✅ Attempt $ATTEMPT succeeded (${ATTEMPT_DURATION}s)"
+            FINAL_RESULT="success"
+            break
+          else
+            # Failure
+            ATTEMPT_END=$(date -u +%s)
+            ATTEMPT_DURATION=$((ATTEMPT_END - ATTEMPT_START))
+            EXIT_CODE=$?
+            
+            # Determine error type
+            ERROR_TYPE="unknown"
+            ERROR_MESSAGE="Command failed with exit code $EXIT_CODE"
+            
+            # Analyze common error patterns
+            if [ $EXIT_CODE -eq 124 ]; then
+              ERROR_TYPE="timeout"
+              ERROR_MESSAGE="Command timed out after ${TIMEOUT}s"
+            elif echo "$ERROR_MESSAGE" | grep -qi "network\|connection\|timeout"; then
+              ERROR_TYPE="network_timeout"
+            elif echo "$ERROR_MESSAGE" | grep -qi "5[0-9][0-9]"; then
+              ERROR_TYPE="http_5xx"
+            elif echo "$ERROR_MESSAGE" | grep -qi "rate.*limit\|too.*many"; then
+              ERROR_TYPE="rate_limit_exceeded"
+            elif echo "$ERROR_MESSAGE" | grep -qi "auth\|permission\|denied"; then
+              ERROR_TYPE="authentication_failed"
+            elif echo "$ERROR_MESSAGE" | grep -qi "not.*found\|404"; then
+              ERROR_TYPE="not_found"
+            elif echo "$ERROR_MESSAGE" | grep -qi "resource\|memory\|disk"; then
+              ERROR_TYPE="resource_exhausted"
+            fi
+            
+            ERROR_DETAILS="$ERROR_TYPE: $ERROR_MESSAGE"
+            
+            echo "❌ Attempt $ATTEMPT failed (${ATTEMPT_DURATION}s) - $ERROR_TYPE"
+            echo "   Error: $ERROR_MESSAGE"
+            
+            # Check if error is retryable
+            IS_RETRYABLE="false"
+            for pattern in "${RETRYABLE_ARRAY[@]}"; do
+              if [[ "$ERROR_TYPE" == *"$pattern"* ]]; then
+                IS_RETRYABLE="true"
+                break
+              fi
+            done
+            
+            # Check if error is explicitly non-retryable
+            for pattern in "${NON_RETRYABLE_ARRAY[@]}"; do
+              if [[ "$ERROR_TYPE" == *"$pattern"* ]]; then
+                IS_RETRYABLE="false"
+                break
+              fi
+            done
+            
+            # Log attempt details
+            ATTEMPT_LOG=$(cat << EOF
+            {
+              "attempt": $ATTEMPT,
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "duration_seconds": $ATTEMPT_DURATION,
+              "exit_code": $EXIT_CODE,
+              "error_type": "$ERROR_TYPE",
+              "error_message": "$ERROR_MESSAGE",
+              "is_retryable": $IS_RETRYABLE
+            }
+        EOF
+            )
+            
+            echo "$ATTEMPT_LOG" >> ".github/reliability/retry-handler/attempts-$(date +%Y-%m-%d).json"
+            
+            # Decide whether to retry
+            if [ "$IS_RETRYABLE" = "false" ] || [ $ATTEMPT -eq $((MAX_RETRIES + 1)) ]; then
+              echo "🚫 Cannot retry - error is non-retryable or max attempts reached"
+              break
+            fi
+            
+            # Calculate delay for next attempt
+            if [ $ATTEMPT -le $MAX_RETRIES ]; then
+              # Calculate exponential backoff delay
+              DELAY=$(echo "scale=2; $BASE_DELAY * ($BACKOFF_FACTOR ^ ($ATTEMPT - 1))" | bc)
+              
+              # Apply maximum delay limit
+              if (( $(echo "$DELAY > $MAX_DELAY" | bc -l) )); then
+                DELAY=$MAX_DELAY
+              fi
+              
+              # Add jitter if enabled
+              if [ "$JITTER" = "true" ]; then
+                # Add up to 25% random jitter
+                JITTER_AMOUNT=$(echo "scale=2; $DELAY * 0.25 * $(echo "scale=4; $RANDOM / 32767" | bc)" | bc)
+                DELAY=$(echo "scale=2; $DELAY + $JITTER_AMOUNT" | bc)
+              fi
+              
+              # Ensure minimum delay
+              if (( $(echo "$DELAY < 1" | bc -l) )); then
+                DELAY=1
+              fi
+              
+              DELAY_INT=$(echo "$DELAY" | cut -d. -f1)
+              
+              echo "⏳ Waiting ${DELAY}s before retry $((ATTEMPT + 1))..."
+              sleep "$DELAY_INT"
+              
+              TOTAL_ATTEMPTS=$((TOTAL_ATTEMPTS + 1))
+            fi
+          fi
+          
+          ATTEMPT=$((ATTEMPT + 1))
+        done
+        
+        END_TIME=$(date -u +%s)
+        TOTAL_DURATION=$((END_TIME - START_TIME))
+        
+        echo ""
+        echo "📊 Retry Logic Summary"
+        echo "====================="
+        echo "Final Result: $FINAL_RESULT"
+        echo "Total Attempts: $ATTEMPT"
+        echo "Total Duration: ${TOTAL_DURATION}s"
+        
+        if [ "$FINAL_RESULT" = "failure" ]; then
+          echo "Final Error: $ERROR_DETAILS"
+        fi
+        
+        # Output results
+        echo "final-result=$FINAL_RESULT" >> $GITHUB_OUTPUT
+        echo "total-attempts=$ATTEMPT" >> $GITHUB_OUTPUT
+        echo "total-duration=$TOTAL_DURATION" >> $GITHUB_OUTPUT
+        echo "error-details=$ERROR_DETAILS" >> $GITHUB_OUTPUT
+        
+        # Store final attempt data
+        FINAL_ATTEMPT_LOG=$(cat << EOF
+        {
+          "summary": {
+            "final_result": "$FINAL_RESULT",
+            "total_attempts": $ATTEMPT,
+            "total_duration_seconds": $TOTAL_DURATION,
+            "error_details": "$ERROR_DETAILS",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+        }
+        EOF
+        )
+        
+        echo "$FINAL_ATTEMPT_LOG" > ".github/reliability/retry-handler/final-result.json"
+        
+        echo "::endgroup::"
+        
+        # Exit with appropriate code
+        if [ "$FINAL_RESULT" = "success" ]; then
+          exit 0
+        else
+          exit 1
+        fi
+    
+    - name: 📊 Retry Handler Report
+      shell: bash
+      run: |
+        echo "::group::📊 Retry Handler Report"
+        echo ""
+        echo "## 🔄 Retry Handler Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Max Retries: `${{ inputs.max-retries }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Base Delay: `${{ inputs.base-delay }}s`" >> $GITHUB_STEP_SUMMARY
+        echo "- Max Delay: `${{ inputs.max-delay }}s`" >> $GITHUB_STEP_SUMMARY
+        echo "- Backoff Factor: `${{ inputs.backoff-factor }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Jitter: `${{ inputs.jitter }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Timeout: `${{ inputs.timeout }}s`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ inputs.operation }}" = "execute" ]; then
+          echo "**Execution Results:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Final Result: `${{ steps.execute.outputs.final-result }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- Total Attempts: `${{ steps.execute.outputs.total-attempts }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- Total Duration: `${{ steps.execute.outputs.total-duration }}s`" >> $GITHUB_STEP_SUMMARY
+          echo "- Error Details: `${{ steps.execute.outputs.error-details }}`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "**Retry Policy:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Retryable Errors: `${{ inputs.retryable-errors }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Non-Retryable Errors: `${{ inputs.non-retryable-errors }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🔄 *Intelligent retry handling with exponential backoff*" >> $GITHUB_STEP_SUMMARY
+        echo ""
+        echo "✅ Retry handler report generated"
+        echo "::endgroup::"

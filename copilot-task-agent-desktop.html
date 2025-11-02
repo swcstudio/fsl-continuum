@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copilot Task Agent - Desktop</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #007AFF;
+            --primary-dark: #0056B3;
+            --primary-light: #e7f3ff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --error-color: #dc3545;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-color: #e9ecef;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+            --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .app-header {
+            background: var(--card-bg);
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .header-badge {
+            background: var(--primary-light);
+            color: var(--primary-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .control-select {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--card-bg);
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+
+        .control-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--success-color);
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: var(--card-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Sidebar Quick Actions */
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-actions-list {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+
+        .quick-action-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid transparent;
+        }
+
+        .quick-action-item:hover {
+            background: var(--primary-light);
+            border-color: var(--primary-color);
+            transform: translateX(4px);
+        }
+
+        .action-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-color);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 16px;
+        }
+
+        .action-content {
+            flex: 1;
+        }
+
+        .action-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .action-shortcut {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-color);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* History Section */
+        .history-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .history-list {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .history-item:hover {
+            background: var(--bg-color);
+            border-left-color: var(--primary-color);
+        }
+
+        .history-item-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .history-item-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item-type {
+            font-size: 10px;
+            color: var(--primary-color);
+            background: var(--primary-light);
+            padding: 2px 4px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .history-item-time {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        /* Content Sections */
+        .content-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        /* Prompt Section */
+        .prompt-container {
+            position: relative;
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            background: var(--bg-color);
+            transition: all 0.2s ease;
+            line-height: 1.6;
+        }
+
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background: var(--card-bg);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .prompt-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            gap: 16px;
+        }
+
+        .prompt-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .action-button {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .primary-button {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .primary-button:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .primary-button:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .secondary-button {
+            background: var(--bg-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .secondary-button:hover {
+            background: var(--border-color);
+        }
+
+        .word-count {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Drop Zone */
+        .drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin-top: 20px;
+            background: var(--bg-color);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: var(--primary-color);
+            background: var(--primary-light);
+        }
+
+        .drop-zone-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .drop-zone-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .drop-zone-hint {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Schema Section */
+        .schema-viewer {
+            background: var(--bg-color);
+            border-radius: 8px;
+            padding: 20px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .schema-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .schema-title-section {
+            flex: 1;
+        }
+
+        .schema-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .schema-type {
+            display: inline-block;
+            background: var(--primary-light);
+            color: var(--primary-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .schema-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-button {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .icon-button:hover {
+            border-color: var(--primary-color);
+            background: var(--primary-light);
+        }
+
+        .schema-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .schema-section {
+            margin-bottom: 20px;
+        }
+
+        .schema-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .requirements-list {
+            list-style: none;
+            background: var(--card-bg);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .requirement-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .requirement-item:last-child {
+            border-bottom: none;
+        }
+
+        .requirement-marker {
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .requirement-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .validation-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .validation-status.valid {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success-color);
+        }
+
+        .validation-status.invalid {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--error-color);
+        }
+
+        /* Result Section */
+        .result-viewer {
+            background: var(--bg-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .result-viewer.success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .result-viewer.error {
+            border-left: 4px solid var(--error-color);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .result-status {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-status.success {
+            color: var(--success-color);
+        }
+
+        .result-status.error {
+            color: var(--error-color);
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .result-message {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .generated-content {
+            background: var(--card-bg);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .generated-content:last-child {
+            margin-bottom: 0;
+        }
+
+        .generated-content-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-icon {
+            margin-right: 12px;
+            font-size: 16px;
+        }
+
+        .file-name {
+            flex: 1;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success-color);
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-content {
+            background: var(--card-bg);
+            padding: 32px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            max-width: 400px;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        .loading-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .loading-subtext {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Keyboard Shortcuts */
+        .shortcuts-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            z-index: 1001;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .shortcuts-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .shortcuts-list {
+            list-style: none;
+        }
+
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .shortcut-item:last-child {
+            border-bottom: none;
+        }
+
+        .shortcut-desc {
+            flex: 1;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .shortcut-keys {
+            display: flex;
+            gap: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background: var(--bg-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-title">
+            <h1>Copilot Task Agent</h1>
+            <span class="header-badge">Desktop</span>
+        </div>
+        <div class="header-controls">
+            <div class="control-group">
+                <span class="control-label">AI System:</span>
+                <select id="aiSystemSelect" class="control-select">
+                    <option value="auto_detect">Auto Detect</option>
+                    <option value="github_copilot_cli">GitHub Copilot CLI</option>
+                    <option value="droid_advanced">Droid Advanced</option>
+                    <option value="unified_orchestrator">Unified Orchestrator</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <span class="control-label">Mode:</span>
+                <select id="executionModeSelect" class="control-select">
+                    <option value="terminal_like">Terminal Like</option>
+                    <option value="fast_execution">Fast Execution</option>
+                    <option value="bulk_operation">Bulk Operation</option>
+                </select>
+            </div>
+            <div class="status-indicator">
+                <span class="status-indicator"></span>
+                <span>Connected</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-title">
+                ⚡ Quick Actions
+            </div>
+            <ul class="quick-actions-list">
+                <li class="quick-action-item" onclick="handleQuickAction('analyze')" title="Ctrl+Shift+A">
+                    <div class="action-icon">🔍</div>
+                    <div class="action-content">
+                        <div class="action-title">Analyze Repository</div>
+                        <div class="action-shortcut">Ctrl+Shift+A</div>
+                    </div>
+                </li>
+                <li class="quick-action-item" onclick="handleQuickAction('tech-stack')" title="Ctrl+Shift+T">
+                    <div class="action-icon">🏗️</div>
+                    <div class="action-content">
+                        <div class="action-title">Create Tech Stack</div>
+                        <div class="action-shortcut">Ctrl+Shift+T</div>
+                    </div>
+                </li>
+                <li class="quick-action-item" onclick="handleQuickAction('features')" title="Ctrl+Shift+F">
+                    <div class="action-icon">➕</div>
+                    <div class="action-content">
+                        <div class="action-title">Add Features</div>
+                        <div class="action-shortcut">Ctrl+Shift+F</div>
+                    </div>
+                </li>
+                <li class="quick-action-item" onclick="handleQuickAction('upgrade')" title="Ctrl+Shift+U">
+                    <div class="action-icon">🔄</div>
+                    <div class="action-content">
+                        <div class="action-title">Upgrade Architecture</div>
+                        <div class="action-shortcut">Ctrl+Shift+U</div>
+                    </div>
+                </li>
+                <li class="quick-action-item" onclick="handleQuickAction('api')" title="Ctrl+Shift+P">
+                    <div class="action-icon">🌐</div>
+                    <div class="action-content">
+                        <div class="action-title">API Design</div>
+                        <div class="action-shortcut">Ctrl+Shift+P</div>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="history-title">
+                📝 Recent History
+            </div>
+            <ul id="historyList" class="history-list">
+                <!-- History items will be populated here -->
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-area">
+                <!-- Prompt Section -->
+                <section class="content-section">
+                    <h2 class="section-title">
+                        📝 Natural Language Prompt
+                    </h2>
+                    <p class="section-subtitle">
+                        Describe your task in natural language. The agent will uplift it to OpenSpec schema and execute with terminal-like speed.
+                    </p>
+                    <div class="prompt-container">
+                        <textarea 
+                            id="promptTextarea" 
+                            class="prompt-textarea" 
+                            placeholder="Enter your task description in natural language...&#10;&#10;Examples:&#10;• Create a modern tech stack for a React web application&#10;• Add user authentication with JWT tokens&#10;• Upgrade monolith to microservices architecture"
+                            oninput="handlePromptInput()"
+                            onkeydown="handleKeyDown(event)"
+                        ></textarea>
+                        <div class="prompt-controls">
+                            <div class="word-count">
+                                <span id="wordCount">0</span> words
+                            </div>
+                            <div class="prompt-actions">
+                                <button class="action-button secondary-button" onclick="handleClear()">
+                                    Clear
+                                </button>
+                                <button 
+                                    id="executeButton" 
+                                    class="action-button primary-button" 
+                                    onclick="handleExecute()" 
+                                    disabled
+                                >
+                                    <span>🚀</span>
+                                    Create & Execute
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Drop Zone -->
+                <section class="content-section">
+                    <h2 class="section-title">
+                        📁 Import OpenSpec or Text
+                    </h2>
+                    <div 
+                        id="dropZone" 
+                        class="drop-zone" 
+                        ondrop="handleFileDrop(event)" 
+                        ondragover="handleDragOver(event)"
+                        ondragleave="handleDragLeave(event)"
+                        onclick="document.getElementById('fileInput').click()"
+                    >
+                        <div class="drop-zone-icon">📁</div>
+                        <div class="drop-zone-title">Drop files here or click to browse</div>
+                        <div class="drop-zone-hint">Supports OpenSpec (.json) files and text prompts</div>
+                        <input 
+                            type="file" 
+                            id="fileInput" 
+                            style="display: none;" 
+                            accept=".json,.txt" 
+                            onchange="handleFileSelect(event)"
+                        >
+                    </div>
+                </section>
+
+                <!-- Schema Section (hidden initially) -->
+                <section id="schemaSection" class="content-section" style="display: none;">
+                    <h2 class="section-title">
+                        📋 Generated OpenSpec Schema
+                    </h2>
+                    <div class="schema-viewer">
+                        <div class="schema-header">
+                            <div class="schema-title-section">
+                                <div class="schema-title" id="schemaTitle"></div>
+                                <span class="schema-type" id="schemaType"></span>
+                            </div>
+                            <div class="schema-actions">
+                                <button class="icon-button" onclick="handleCopySchema()" title="Copy Schema">
+                                    📋
+                                </button>
+                                <button class="icon-button" onclick="handleExportSchema()" title="Export Schema">
+                                    💾
+                                </button>
+                            </div>
+                        </div>
+                        <p class="schema-description" id="schemaDescription"></p>
+                        
+                        <div class="schema-section">
+                            <h3 class="schema-section-title">Requirements</h3>
+                            <ul id="requirementsList" class="requirements-list">
+                                <!-- Requirements will be populated here -->
+                            </ul>
+                        </div>
+                        
+                        <div id="validationStatus" class="validation-status">
+                            <!-- Validation status will be populated here -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Result Section (hidden initially) -->
+                <section id="resultSection" class="content-section" style="display: none;">
+                    <h2 class="section-title">
+                        ✅ Execution Result
+                    </h2>
+                    <div id="resultViewer" class="result-viewer">
+                        <div class="result-header">
+                            <div id="resultStatus" class="result-status">
+                                <!-- Result status will be populated here -->
+                            </div>
+                            <div class="result-actions">
+                                <button class="icon-button" onclick="handleCopyResult()" title="Copy Result">
+                                    📋
+                                </button>
+                                <button class="icon-button" onclick="handleSaveResult()" title="Save Result">
+                                    💾
+                                </button>
+                                <button class="icon-button" onclick="handleShareResult()" title="Share Result">
+                                    🔗
+                                </button>
+                            </div>
+                        </div>
+                        <p id="resultMessage" class="result-message"></p>
+                        
+                        <div id="generatedContent">
+                            <!-- Generated content will be populated here -->
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+        <div class="status-item">
+            <span class="status-indicator"></span>
+            <span>FSL Continuum Connected</span>
+        </div>
+        <div class="status-item">
+            <span id="currentMode">Terminal Like</span>
+        </div>
+        <div class="status-item">
+            <span id="currentAI">Auto Detect</span>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Processing...</div>
+            <div class="loading-subtext" id="loadingSubtext">Uplifting to OpenSpec schema...</div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcutsModal" class="shortcuts-modal">
+        <div class="shortcuts-title">⌨️ Keyboard Shortcuts</div>
+        <ul class="shortcuts-list">
+            <li class="shortcut-item">
+                <span class="shortcut-desc">Execute Prompt</span>
+                <span class="shortcut-keys">
+                    <span>Ctrl</span> + <span>Enter</span>
+                </span>
+            </li>
+            <li class="shortcut-item">
+                <span class="shortcut-desc">Clear Prompt</span>
+                <span class="shortcut-keys">
+                    <span>Ctrl</span> + <span>K</span>
+                </span>
+            </li>
+            <li class="shortcut-item">
+                <span class="shortcut-desc">Open Quick Actions</span>
+                <span class="shortcut-keys">
+                    <span>Ctrl</span> + <span>Shift</span> + <span>Q</span>
+                </span>
+            </li>
+            <li class="shortcut-item">
+                <span class="shortcut-desc">Keyboard Shortcuts</span>
+                <span class="shortcut-keys">
+                    <span>Ctrl</span> + <span>/</span>
+                </span>
+            </li>
+            <li class="shortcut-item">
+                <span class="shortcut-desc">Import File</span>
+                <span class="shortcut-keys">
+                    <span>Ctrl</span> + <span>O</span>
+                </span>
+            </li>
+            <li class="shortcut-item">
+                <span class="shortcut-desc">Export Result</span>
+                <span class="shortcut-keys">
+                    <span>Ctrl</span> + <span>S</span>
+                </span>
+            </li>
+        </ul>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="action-button primary-button" onclick="closeShortcutsModal()">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:8000';
+        let currentSchema = null;
+        let currentResult = null;
+        let isProcessing = false;
+
+        // Quick action prompts
+        const quickActionPrompts = {
+            'analyze': 'Analyze this repository structure and suggest improvements for performance, security, and maintainability',
+            'tech-stack': 'Create a modern, scalable tech stack for a web application using React, Node.js, PostgreSQL, Docker, and Kubernetes deployment',
+            'features': 'Implement comprehensive user authentication and authorization system with JWT tokens, role-based access control, password reset, and security best practices',
+            'upgrade': 'Upgrade current monolith architecture to microservices with event-driven design, API gateway, circuit breakers, and containerization using Docker',
+            'api': 'Design and implement a RESTful API with GraphQL support, comprehensive documentation, rate limiting, caching, and monitoring using best practices'
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Focus on textarea
+            const textarea = document.getElementById('promptTextarea');
+            textarea.focus();
+            
+            // Load history
+            loadHistory();
+            
+            // Check API connection
+            checkAPIConnection();
+            
+            // Add keyboard shortcuts
+            document.addEventListener('keydown', handleGlobalKeyDown);
+        });
+
+        // API Connection Check
+        async function checkAPIConnection() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/status`);
+                const data = await response.json();
+                
+                if (data.status === 'active') {
+                    console.log('✅ Connected to FSL Continuum API');
+                } else {
+                    console.error('❌ API connection failed');
+                }
+            } catch (error) {
+                console.error('❌ Failed to connect to API:', error);
+            }
+        }
+
+        // Quick Actions
+        function handleQuickAction(action) {
+            const textarea = document.getElementById('promptTextarea');
+            textarea.value = quickActionPrompts[action];
+            handlePromptInput();
+            
+            // Auto-execute after short delay
+            setTimeout(() => {
+                handleExecute();
+            }, 100);
+        }
+
+        // Prompt Input Handling
+        function handlePromptInput() {
+            const textarea = document.getElementById('promptTextarea');
+            const wordCount = textarea.value.trim().split(/\s+/).filter(word => word.length > 0).length;
+            const executeButton = document.getElementById('executeButton');
+            
+            document.getElementById('wordCount').textContent = wordCount;
+            executeButton.disabled = wordCount === 0 || isProcessing;
+        }
+
+        // Keyboard Shortcuts
+        function handleKeyDown(event) {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                if (document.activeElement.id === 'promptTextarea') {
+                    handleExecute();
+                }
+            }
+        }
+
+        function handleGlobalKeyDown(event) {
+            // Ctrl+K - Clear prompt
+            if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+                event.preventDefault();
+                handleClear();
+            }
+            
+            // Ctrl+/ - Show shortcuts
+            if ((event.ctrlKey || event.metaKey) && event.key === '/') {
+                event.preventDefault();
+                showShortcutsModal();
+            }
+            
+            // Ctrl+O - Open file
+            if ((event.ctrlKey || event.metaKey) && event.key === 'o') {
+                event.preventDefault();
+                document.getElementById('fileInput').click();
+            }
+            
+            // Ctrl+S - Save result
+            if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                event.preventDefault();
+                if (currentResult) {
+                    handleSaveResult();
+                }
+            }
+        }
+
+        function handleClear() {
+            const textarea = document.getElementById('promptTextarea');
+            textarea.value = '';
+            handlePromptInput();
+            textarea.focus();
+        }
+
+        function showShortcutsModal() {
+            document.getElementById('shortcutsModal').style.display = 'block';
+        }
+
+        function closeShortcutsModal() {
+            document.getElementById('shortcutsModal').style.display = 'none';
+        }
+
+        // File Handling
+        function handleDragOver(event) {
+            event.preventDefault();
+            document.getElementById('dropZone').classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            document.getElementById('dropZone').classList.remove('dragover');
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            document.getElementById('dropZone').classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                try {
+                    // Try to parse as JSON/OpenSpec
+                    const jsonData = JSON.parse(content);
+                    if (jsonData.spec_type || jsonData.requirements) {
+                        loadOpenSpec(jsonData);
+                        return;
+                    }
+                } catch (error) {
+                    // Not JSON, treat as text prompt
+                }
+                
+                // Load as prompt text
+                const textarea = document.getElementById('promptTextarea');
+                textarea.value = content;
+                handlePromptInput();
+            };
+            reader.readAsText(file);
+        }
+
+        function loadOpenSpec(schemaData) {
+            currentSchema = schemaData;
+            displaySchema(schemaData);
+        }
+
+        // API Functions
+        async function handleExecute() {
+            if (isProcessing) return;
+            
+            const textarea = document.getElementById('promptTextarea');
+            const prompt = textarea.value.trim();
+            
+            if (!prompt) return;
+            
+            const aiSystem = document.getElementById('aiSystemSelect').value;
+            const executionMode = document.getElementById('executionModeSelect').value;
+            
+            isProcessing = true;
+            showLoading('Processing your request...', 'Uplifting to OpenSpec schema...');
+            
+            try {
+                // Step 1: Uplift prompt to OpenSpec
+                const upliftResponse = await fetch(`${API_BASE_URL}/api/v1/prompt-uplift`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        natural_input: prompt,
+                        target_platform: 'desktop',
+                        execution_preference: executionMode,
+                        ai_system_preference: aiSystem
+                    })
+                });
+
+                const upliftResult = await upliftResponse.json();
+                
+                if (upliftResult.success) {
+                    currentSchema = upliftResult.openspec_schema;
+                    displaySchema(upliftResult.openspec_schema);
+                    
+                    // Auto-execute if validation is good
+                    if (upliftResult.validation_status === 'valid') {
+                        showLoading('Executing task...', 'Running with terminal-like speed...');
+                        
+                        // Step 2: Execute task
+                        const executeResponse = await fetch(`${API_BASE_URL}/api/v1/execute-task`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                openspec_schema: upliftResult.openspec_schema,
+                                execution_mode: executionMode
+                            })
+                        });
+
+                        const executeResult = await executeResponse.json();
+                        
+                        if (executeResult.status === 'completed') {
+                            currentResult = executeResult.result;
+                            displayResult(executeResult.result);
+                            saveToHistory(prompt, upliftResult.openspec_schema, executeResult.result);
+                        } else {
+                            displayError('Execution failed', executeResult.result?.error || 'Unknown error');
+                        }
+                    } else {
+                        hideLoading();
+                        alert('Schema validation failed. Please review the generated schema before proceeding.');
+                    }
+                } else {
+                    hideLoading();
+                    alert('Failed to process your request: ' + (upliftResult.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Execution failed:', error);
+                hideLoading();
+                alert('Failed to process your request. Please check your connection and try again.');
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        // UI Display Functions
+        function displaySchema(schema) {
+            const schemaSection = document.getElementById('schemaSection');
+            schemaSection.style.display = 'block';
+            
+            // Populate schema details
+            document.getElementById('schemaTitle').textContent = schema.title;
+            document.getElementById('schemaType').textContent = schema.spec_type.replace(/_/g, ' ').toUpperCase();
+            document.getElementById('schemaDescription').textContent = schema.description;
+            
+            // Display requirements
+            const requirementsList = document.getElementById('requirementsList');
+            requirementsList.innerHTML = '';
+            
+            if (schema.requirements && schema.requirements.length > 0) {
+                schema.requirements.forEach((req, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'requirement-item';
+                    li.innerHTML = `
+                        <div class="requirement-marker">${index + 1}</div>
+                        <div class="requirement-text">${req}</div>
+                    `;
+                    requirementsList.appendChild(li);
+                });
+            }
+            
+            // Display validation status
+            const validationStatus = document.getElementById('validationStatus');
+            validationStatus.className = `validation-status ${schema.validation_status}`;
+            validationStatus.innerHTML = `
+                ${schema.validation_status === 'valid' ? '✅' : '❌'} 
+                Status: ${schema.validation_status.toUpperCase()}
+            `;
+            
+            // Scroll to schema section
+            schemaSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function displayResult(result) {
+            hideLoading();
+            
+            const resultSection = document.getElementById('resultSection');
+            const resultViewer = document.getElementById('resultViewer');
+            
+            resultSection.style.display = 'block';
+            
+            // Set result viewer class based on success
+            if (result.execution_success) {
+                resultViewer.className = 'result-viewer success';
+                document.getElementById('resultStatus').innerHTML = '<span>✅</span> EXECUTION SUCCESSFUL';
+            } else {
+                resultViewer.className = 'result-viewer error';
+                document.getElementById('resultStatus').innerHTML = '<span>❌</span> EXECUTION FAILED';
+            }
+            
+            document.getElementById('resultMessage').textContent = result.message || 'Task completed';
+            
+            // Display generated content
+            const generatedContent = document.getElementById('generatedContent');
+            generatedContent.innerHTML = '';
+            
+            if (result.generated_files && result.generated_files.length > 0) {
+                const filesDiv = document.createElement('div');
+                filesDiv.className = 'generated-content';
+                filesDiv.innerHTML = `
+                    <h3 class="generated-content-title">Generated Files</h3>
+                    <ul class="file-list">
+                        ${result.generated_files.map(file => `
+                            <li class="file-item">
+                                <span class="file-icon">📄</span>
+                                <span class="file-name">${file}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+                generatedContent.appendChild(filesDiv);
+            }
+            
+            if (result.tech_stack) {
+                const techStackDiv = document.createElement('div');
+                techStackDiv.className = 'generated-content';
+                techStackDiv.innerHTML = `
+                    <h3 class="generated-content-title">Generated Tech Stack</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
+                        ${Object.entries(result.tech_stack).map(([key, value]) => `
+                            <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                                <strong>${key}:</strong> ${value}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                generatedContent.appendChild(techStackDiv);
+            }
+            
+            // Scroll to result section
+            resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function displayError(title, message) {
+            hideLoading();
+            
+            const resultSection = document.getElementById('resultSection');
+            const resultViewer = document.getElementById('resultViewer');
+            
+            resultSection.style.display = 'block';
+            resultViewer.className = 'result-viewer error';
+            document.getElementById('resultStatus').innerHTML = '<span>❌</span> ERROR';
+            document.getElementById('resultMessage').textContent = message;
+            document.getElementById('generatedContent').innerHTML = '';
+            
+            resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Loading Functions
+        function showLoading(text = 'Processing...', subtext = 'Uplifting to OpenSpec schema...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingSubtext').textContent = subtext;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // Action Functions
+        function handleCopySchema() {
+            if (!currentSchema) return;
+            
+            navigator.clipboard.writeText(JSON.stringify(currentSchema, null, 2))
+                .then(() => {
+                    alert('OpenSpec schema copied to clipboard!');
+                })
+                .catch(err => {
+                    console.error('Failed to copy schema:', err);
+                });
+        }
+
+        function handleExportSchema() {
+            if (!currentSchema) return;
+            
+            const blob = new Blob([JSON.stringify(currentSchema, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `openspec-schema-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleCopyResult() {
+            if (!currentResult) return;
+            
+            navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2))
+                .then(() => {
+                    alert('Result copied to clipboard!');
+                })
+                .catch(err => {
+                    console.error('Failed to copy result:', err);
+                });
+        }
+
+        function handleSaveResult() {
+            if (!currentResult) return;
+            
+            const blob = new Blob([JSON.stringify(currentResult, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `copilot-result-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleShareResult() {
+            if (!currentResult) return;
+            
+            // In a real implementation, this would generate a shareable link
+            const shareData = btoa(JSON.stringify(currentResult));
+            const shareUrl = `${window.location.origin}?shared=${shareData}`;
+            
+            navigator.clipboard.writeText(shareUrl)
+                .then(() => {
+                    alert('Share link copied to clipboard!');
+                })
+                .catch(err => {
+                    console.error('Failed to create share link:', err);
+                });
+        }
+
+        // History Functions
+        async function loadHistory() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/request-history?limit=20`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayHistory(data.history);
+                }
+            } catch (error) {
+                console.error('Failed to load history:', error);
+            }
+        }
+
+        function displayHistory(historyItems) {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            
+            historyItems.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                li.onclick = () => loadHistoryItem(item);
+                
+                const timeAgo = getTimeAgo(item.timestamp);
+                
+                li.innerHTML = `
+                    <div class="history-item-title">${item.title || 'Untitled Task'}</div>
+                    <div class="history-item-meta">
+                        <span class="history-item-type">${item.spec_type || 'Unknown'}</span>
+                        <span class="history-item-time">${timeAgo}</span>
+                    </div>
+                `;
+                
+                historyList.appendChild(li);
+            });
+        }
+
+        function loadHistoryItem(item) {
+            if (item.input) {
+                const textarea = document.getElementById('promptTextarea');
+                textarea.value = item.input;
+                handlePromptInput();
+            }
+            
+            if (item.output) {
+                currentSchema = item.output;
+                displaySchema(item.output);
+            }
+        }
+
+        function saveToHistory(prompt, schema, result) {
+            // In a real implementation, this would save to local storage
+            console.log('Saved to history:', { prompt, schema, result });
+        }
+
+        function getTimeAgo(timestamp) {
+            const seconds = Math.floor(Date.now() / 1000) - timestamp;
+            
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+        }
+
+        // Update status bar
+        document.getElementById('aiSystemSelect').addEventListener('change', function() {
+            document.getElementById('currentAI').textContent = this.options[this.selectedIndex].text;
+        });
+
+        document.getElementById('executionModeSelect').addEventListener('change', function() {
+            document.getElementById('currentMode').textContent = this.options[this.selectedIndex].text;
+        });
+    </script>
+</body>
+</html>

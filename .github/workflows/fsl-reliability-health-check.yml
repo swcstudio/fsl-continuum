@@ -1,0 +1,773 @@
+name: FSL Reliability Health Check
+
+# FSL Continuum Reliability Health Check Workflow
+# SPEC:RELIABILITY-002 - Continuous Health Monitoring
+#
+# Comprehensive health monitoring for FSL Continuum reliability:
+# - System health checks (CPU, memory, disk)
+# - Service availability checks (GitHub APIs, Linear, Blockchain)
+# - State integrity validation
+# - Circuit breaker status monitoring
+# - SLA compliance tracking
+# - Reliability metrics collection
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
+  workflow_dispatch:
+    inputs:
+      check-type:
+        description: 'Type of health check to run'
+        required: false
+        default: 'all'
+        type: choice
+        options: ['all', 'system', 'services', 'state', 'sla', 'circuit']
+      severity-threshold:
+        description: 'Alert severity threshold'
+        required: false
+        default: 'warning'
+        type: choice
+        options: ['info', 'warning', 'error', 'critical']
+      create-issues:
+        description: 'Create GitHub issues for critical failures'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  CHECK_TYPE: ${{ github.event.inputs.check-type || 'all' }}
+  SEVERITY_THRESHOLD: ${{ github.event.inputs.severity-threshold || 'warning' }}
+  CREATE_ISSUES: ${{ github.event.inputs.create-issues || 'true' }}
+
+jobs:
+  health-check:
+    name: FSL Reliability Health Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    
+    outputs:
+      overall-status: ${{ steps.summary.outputs.overall-status }}
+      system-status: ${{ steps.system-check.outputs.status }}
+      services-status: ${{ steps.services-check.outputs.status }}
+      state-status: ${{ steps.state-check.outputs.status }}
+      circuit-status: ${{ steps.circuit-check.outputs.status }}
+      sla-status: ${{ steps.sla-check.outputs.status }}
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 🏥 Initialize Health Check
+        id: init
+        run: |
+          echo "::group::🏥 Initializing Health Check"
+          
+          echo "🌊 FSL Continuum Reliability Health Check"
+          echo "========================================"
+          echo ""
+          echo "Check Type: $CHECK_TYPE"
+          echo "Severity Threshold: $SEVERITY_THRESHOLD"
+          echo "Create Issues: $CREATE_ISSUES"
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo ""
+          
+          # Create health check directory
+          mkdir -p .github/reliability/health-checks
+          mkdir -p .github/reliability/metrics
+          
+          # Initialize health check results
+          HEALTH_CHECK_START=$(date -u +%s)
+          echo "health-check-start=$HEALTH_CHECK_START" >> $GITHUB_OUTPUT
+          
+          echo "✅ Health check initialized"
+          echo "::endgroup::"
+      
+      - name: 💻 System Health Check
+        id: system-check
+        if: ${{ env.CHECK_TYPE == 'all' || env.CHECK_TYPE == 'system' }}
+        run: |
+          echo "::group::💻 System Health Check"
+          
+          SYSTEM_STATUS="healthy"
+          SYSTEM_ISSUES=""
+          
+          # Check CPU usage
+          CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | awk -F'%' '{print $1}')
+          if (( $(echo "$CPU_USAGE > 80" | bc -l) )); then
+            SYSTEM_ISSUES="$SYSTEM_ISSUES High CPU usage: $CPU_USAGE%;"
+            SYSTEM_STATUS="warning"
+          fi
+          
+          # Check memory usage
+          MEMORY_USAGE=$(free | grep Mem | awk '{printf("%.1f", ($3/$2) * 100.0)}')
+          if (( $(echo "$MEMORY_USAGE > 85" | bc -l) )); then
+            SYSTEM_ISSUES="$SYSTEM_ISSUES High memory usage: $MEMORY_USAGE%;"
+            if [ "$SYSTEM_STATUS" != "error" ]; then
+              SYSTEM_STATUS="warning"
+            fi
+          fi
+          
+          # Check disk usage
+          DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+          if [ "$DISK_USAGE" -gt 90 ]; then
+            SYSTEM_ISSUES="$SYSTEM_ISSUES High disk usage: $DISK_USAGE%;"
+            SYSTEM_STATUS="error"
+          fi
+          
+          # Check load average
+          LOAD_AVERAGE=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
+          LOAD_THRESHOLD=$(nproc)
+          if (( $(echo "$LOAD_AVERAGE > $LOAD_THRESHOLD" | bc -l) )); then
+            SYSTEM_ISSUES="$SYSTEM_ISSUES High load average: $LOAD_AVERAGE (threshold: $LOAD_THRESHOLD);"
+            if [ "$SYSTEM_STATUS" = "healthy" ]; then
+              SYSTEM_STATUS="warning"
+            fi
+          fi
+          
+          # Check available processes
+          MAX_PID=$(cat /proc/sys/kernel/pid_max)
+          CURRENT_PID=$(pgrep -d , '.' || echo "0")
+          PID_USAGE=$(echo "scale=2; $CURRENT_PID / $MAX_PID * 100" | bc)
+          if (( $(echo "$PID_USAGE > 80" | bc -l) )); then
+            SYSTEM_ISSUES="$SYSTEM_ISSUES High PID usage: $PID_USAGE%;"
+            if [ "$SYSTEM_STATUS" = "healthy" ]; then
+              SYSTEM_STATUS="warning"
+            fi
+          fi
+          
+          echo "status=$SYSTEM_STATUS" >> $GITHUB_OUTPUT
+          echo "issues=$SYSTEM_ISSUES" >> $GITHUB_OUTPUT
+          echo "cpu-usage=$CPU_USAGE" >> $GITHUB_OUTPUT
+          echo "memory-usage=$MEMORY_USAGE" >> $GITHUB_OUTPUT
+          echo "disk-usage=$DISK_USAGE" >> $GITHUB_OUTPUT
+          echo "load-average=$LOAD_AVERAGE" >> $GITHUB_OUTPUT
+          
+          # Log system metrics
+          SYSTEM_METRICS=$(cat << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "cpu_usage_percent": "$CPU_USAGE",
+            "memory_usage_percent": "$MEMORY_USAGE",
+            "disk_usage_percent": "$DISK_USAGE",
+            "load_average": "$LOAD_AVERAGE",
+            "pid_usage_percent": "$PID_USAGE",
+            "status": "$SYSTEM_STATUS",
+            "issues": "$SYSTEM_ISSUES"
+          }
+        EOF
+        )
+          
+          echo "$SYSTEM_METRICS" >> ".github/reliability/metrics/system-$(date +%Y-%m-%d).json"
+          
+          echo "System Status: $SYSTEM_STATUS"
+          if [ -n "$SYSTEM_ISSUES" ]; then
+            echo "Issues:"
+            echo "$SYSTEM_ISSUES" | tr ';' '\n' | sed 's/^/  - /'
+          fi
+          
+          echo "✅ System health check completed"
+          echo "::endgroup::"
+      
+      - name: 🌐 Services Health Check
+        id: services-check
+        if: ${{ env.CHECK_TYPE == 'all' || env.CHECK_TYPE == 'services' }}
+        run: |
+          echo "::group::🌐 Services Health Check"
+          
+          SERVICES_STATUS="healthy"
+          SERVICES_ISSUES=""
+          
+          # Check GitHub API
+          echo "🔍 Checking GitHub API..."
+          GITHUB_START=$(date -u +%s)
+          if curl -s "https://api.github.com/rate_limit" --max-time 10 > /dev/null 2>&1; then
+            GITHUB_END=$(date -u +%s)
+            GITHUB_RESPONSE_TIME=$((GITHUB_END - GITHUB_START))
+            echo "✅ GitHub API: OK (${GITHUB_RESPONSE_TIME}s)"
+          else
+            SERVICES_ISSUES="$SERVICES_ISSUES GitHub API unavailable;"
+            SERVICES_STATUS="error"
+          fi
+          
+          # Check Linear API (if configured)
+          if [ -n "${{ secrets.LINEAR_API_KEY }}" ]; then
+            echo "🔍 Checking Linear API..."
+            LINEAR_START=$(date -u +%s)
+            if curl -s "https://api.linear.app/graphql" \
+              -H "Authorization: ${{ secrets.LINEAR_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d '{"query":"{ viewer { id } }"}' \
+              --max-time 10 > /dev/null 2>&1; then
+              LINEAR_END=$(date -u +%s)
+              LINEAR_RESPONSE_TIME=$((LINEAR_END - LINEAR_START))
+              echo "✅ Linear API: OK (${LINEAR_RESPONSE_TIME}s)"
+            else
+              SERVICES_ISSUES="$SERVICES_ISSUES Linear API unavailable;"
+              if [ "$SERVICES_STATUS" != "error" ]; then
+                SERVICES_STATUS="warning"
+              fi
+            fi
+          fi
+          
+          # Check Polygon blockchain
+          echo "🔍 Checking Polygon blockchain..."
+          POLYGON_START=$(date -u +%s)
+          if curl -s "https://polygon-rpc.com" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+            --max-time 15 > /dev/null 2>&1; then
+            POLYGON_END=$(date -u +%s)
+            POLYGON_RESPONSE_TIME=$((POLYGON_END - POLYGON_START))
+            echo "✅ Polygon: OK (${POLYGON_RESPONSE_TIME}s)"
+          else
+            SERVICES_ISSUES="$SERVICES_ISSUES Polygon blockchain unavailable;"
+            if [ "$SERVICES_STATUS" != "error" ]; then
+              SERVICES_STATUS="warning"
+            fi
+          fi
+          
+          # Check Slack webhook (if configured)
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "🔍 Checking Slack webhook..."
+            SLACK_START=$(date -u +%s)
+            if curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H 'Content-Type: application/json' \
+              -d '{"text":"FSL Reliability Health Check Test"}' \
+              --max-time 10 > /dev/null 2>&1; then
+              SLACK_END=$(date -u +%s)
+              SLACK_RESPONSE_TIME=$((SLACK_END - SLACK_START))
+              echo "✅ Slack: OK (${SLACK_RESPONSE_TIME}s)"
+            else
+              SERVICES_ISSUES="$SERVICES_ISSUES Slack webhook unavailable;"
+              if [ "$SERVICES_STATUS" != "error" ]; then
+                SERVICES_STATUS="warning"
+              fi
+            fi
+          fi
+          
+          echo "status=$SERVICES_STATUS" >> $GITHUB_OUTPUT
+          echo "issues=$SERVICES_ISSUES" >> $GITHUB_OUTPUT
+          
+          # Log services metrics
+          SERVICES_METRICS=$(cat << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "github_api": {
+              "status": "$(echo "$SERVICES_ISSUES" | grep -q "GitHub" && echo "unavailable" || echo "available")",
+              "response_time_seconds": "${GITHUB_RESPONSE_TIME:-0}"
+            },
+            "linear_api": {
+              "status": "$(echo "$SERVICES_ISSUES" | grep -q "Linear" && echo "unavailable" || echo "available")",
+              "response_time_seconds": "${LINEAR_RESPONSE_TIME:-0}"
+            },
+            "polygon_blockchain": {
+              "status": "$(echo "$SERVICES_ISSUES" | grep -q "Polygon" && echo "unavailable" || echo "available")",
+              "response_time_seconds": "${POLYGON_RESPONSE_TIME:-0}"
+            },
+            "slack_webhook": {
+              "status": "$(echo "$SERVICES_ISSUES" | grep -q "Slack" && echo "unavailable" || echo "available")",
+              "response_time_seconds": "${SLACK_RESPONSE_TIME:-0}"
+            },
+            "overall_status": "$SERVICES_STATUS",
+            "issues": "$SERVICES_ISSUES"
+          }
+        EOF
+        )
+          
+          echo "$SERVICES_METRICS" >> ".github/reliability/metrics/services-$(date +%Y-%m-%d).json"
+          
+          echo "Services Status: $SERVICES_STATUS"
+          if [ -n "$SERVICES_ISSUES" ]; then
+            echo "Issues:"
+            echo "$SERVICES_ISSUES" | tr ';' '\n' | sed 's/^/  - /'
+          fi
+          
+          echo "✅ Services health check completed"
+          echo "::endgroup::"
+      
+      - name: 🔍 State Health Check
+        id: state-check
+        if: ${{ env.CHECK_TYPE == 'all' || env.CHECK_TYPE == 'state' }}
+        uses: ./.github/actions/reliability/state-validator
+        with:
+          state-file: '.github/state/continuum-state.json'
+          backup-state: true
+          strict-mode: false
+          checksum-verification: true
+          semantic-validation: true
+          max-state-size: '100'
+      
+      - name: 🔌 Circuit Breaker Health Check
+        id: circuit-check
+        if: ${{ env.CHECK_TYPE == 'all' || env.CHECK_TYPE == 'circuit' }}
+        run: |
+          echo "::group::🔌 Circuit Breaker Health Check"
+          
+          CIRCUIT_STATUS="healthy"
+          CIRCUIT_ISSUES=""
+          OPEN_CIRCUITS=""
+          
+          # Check circuit breaker states
+          CIRCUIT_DIR=".github/reliability/circuit-breaker"
+          
+          if [ -d "$CIRCUIT_DIR" ]; then
+            for circuit_file in "$CIRCUIT_DIR"/*.json; do
+              if [ -f "$circuit_file" ]; then
+                SERVICE_NAME=$(basename "$circuit_file" .json)
+                CIRCUIT_STATE=$(jq -r '.state' "$circuit_file")
+                FAILURE_COUNT=$(jq -r '.failure_count' "$circuit_file")
+                LAST_FAILURE=$(jq -r '.last_failure_time' "$circuit_file")
+                
+                echo "🔌 Service: $SERVICE_NAME"
+                echo "   State: $CIRCUIT_STATE"
+                echo "   Failures: $FAILURE_COUNT"
+                echo "   Last Failure: $LAST_FAILURE"
+                
+                if [ "$CIRCUIT_STATE" = "open" ]; then
+                  OPEN_CIRCUITS="$OPEN_CIRCUITS $SERVICE_NAME"
+                  CIRCUIT_STATUS="warning"
+                  CIRCUIT_ISSUES="$CIRCUIT_ISSUES Circuit open for $SERVICE_NAME;"
+                elif [ "$CIRCUIT_STATE" = "half-open" ]; then
+                  CIRCUIT_ISSUES="$CIRCUIT_ISSUES Circuit half-open for $SERVICE_NAME;"
+                fi
+              fi
+            done
+          else
+            echo "ℹ️ No circuit breaker state files found"
+          fi
+          
+          if [ -n "$OPEN_CIRCUITS" ]; then
+            echo "⚠️ Open circuits:$OPEN_CIRCUITS"
+            CIRCUIT_STATUS="warning"
+          fi
+          
+          echo "status=$CIRCUIT_STATUS" >> $GITHUB_OUTPUT
+          echo "issues=$CIRCUIT_ISSUES" >> $GITHUB_OUTPUT
+          echo "open-circuits=$OPEN_CIRCUITS" >> $GITHUB_OUTPUT
+          
+          # Log circuit breaker metrics
+          CIRCUIT_METRICS=$(cat << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "overall_status": "$CIRCUIT_STATUS",
+            "open_circuits": "$OPEN_CIRCUITS",
+            "issues": "$CIRCUIT_ISSUES"
+          }
+        EOF
+        )
+          
+          echo "$CIRCUIT_METRICS" >> ".github/reliability/metrics/circuit-breaker-$(date +%Y-%m-%d).json"
+          
+          echo "Circuit Breaker Status: $CIRCUIT_STATUS"
+          if [ -n "$CIRCUIT_ISSUES" ]; then
+            echo "Issues:"
+            echo "$CIRCUIT_ISSUES" | tr ';' '\n' | sed 's/^/  - /'
+          fi
+          
+          echo "✅ Circuit breaker health check completed"
+          echo "::endgroup::"
+      
+      - name: 📊 SLA Health Check
+        id: sla-check
+        if: ${{ env.CHECK_TYPE == 'all' || env.CHECK_TYPE == 'sla' }}
+        run: |
+          echo "::group::📊 SLA Health Check"
+          
+          SLA_STATUS="healthy"
+          SLA_ISSUES=""
+          
+          # Load reliability configuration
+          CONFIG_FILE=".github/reliability/config/reliability-config.yml"
+          
+          if [ -f "$CONFIG_FILE" ]; then
+            echo "📋 Loading SLA configuration..."
+            
+            # Extract SLA targets (would normally parse YAML, using defaults here)
+            CRITICAL_AVAILABILITY=99.9
+            NORMAL_AVAILABILITY=99.5
+            BACKGROUND_AVAILABILITY=99.0
+            
+            echo "SLA Targets:"
+            echo "  Critical: ${CRITICAL_AVAILABILITY}%"
+            echo "  Normal: ${NORMAL_AVAILABILITY}%"
+            echo "  Background: ${BACKGROUND_AVAILABILITY}%"
+            
+            # Calculate current availability (simplified)
+            STATE_FILE=".github/state/continuum-state.json"
+            if [ -f "$STATE_FILE" ]; then
+              TOTAL_RUNS=$(jq -r '.statistics.total_continuum_runs // 0' "$STATE_FILE")
+              SUCCESSFUL_RUNS=$(jq -r '.statistics.successful_runs // 0' "$STATE_FILE")
+              FAILED_RUNS=$(jq -r '.statistics.failed_runs // 0' "$STATE_FILE")
+              
+              if [ "$TOTAL_RUNS" -gt 0 ]; then
+                CURRENT_AVAILABILITY=$(echo "scale=2; $SUCCESSFUL_RUNS / $TOTAL_RUNS * 100" | bc)
+                echo "Current Availability: ${CURRENT_AVAILABILITY}%"
+                echo "Total Runs: $TOTAL_RUNS"
+                echo "Successful: $SUCCESSFUL_RUNS"
+                echo "Failed: $FAILED_RUNS"
+                
+                # Check SLA compliance
+                if (( $(echo "$CURRENT_AVAILABILITY < $CRITICAL_AVAILABILITY" | bc -l) )); then
+                  SLA_ISSUES="$SLA_ISSUES Critical SLA breached: ${CURRENT_AVAILABILITY}% < ${CRITICAL_AVAILABILITY}%;"
+                  SLA_STATUS="error"
+                elif (( $(echo "$CURRENT_AVAILABILITY < $NORMAL_AVAILABILITY" | bc -l) )); then
+                  SLA_ISSUES="$SLA_ISSUES Normal SLA breached: ${CURRENT_AVAILABILITY}% < ${NORMAL_AVAILABILITY}%;"
+                  SLA_STATUS="warning"
+                fi
+              else
+                echo "ℹ️ No runs recorded yet"
+              fi
+            else
+              echo "ℹ️ State file not found"
+            fi
+          else
+            echo "ℹ️ Reliability configuration not found"
+            SLA_ISSUES="$SLA_ISSUES Reliability configuration not found;"
+            SLA_STATUS="warning"
+          fi
+          
+          echo "status=$SLA_STATUS" >> $GITHUB_OUTPUT
+          echo "issues=$SLA_ISSUES" >> $GITHUB_OUTPUT
+          
+          # Log SLA metrics
+          SLA_METRICS=$(cat << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "sla_status": "$SLA_STATUS",
+            "current_availability_percent": "${CURRENT_AVAILABILITY:-0}",
+            "total_runs": "${TOTAL_RUNS:-0}",
+            "successful_runs": "${SUCCESSFUL_RUNS:-0}",
+            "failed_runs": "${FAILED_RUNS:-0}",
+            "issues": "$SLA_ISSUES"
+          }
+        EOF
+        )
+          
+          echo "$SLA_METRICS" >> ".github/reliability/metrics/sla-$(date +%Y-%m-%d).json"
+          
+          echo "SLA Status: $SLA_STATUS"
+          if [ -n "$SLA_ISSUES" ]; then
+            echo "Issues:"
+            echo "$SLA_ISSUES" | tr ';' '\n' | sed 's/^/  - /'
+          fi
+          
+          echo "✅ SLA health check completed"
+          echo "::endgroup::"
+      
+      - name: 📋 Health Check Summary
+        id: summary
+        run: |
+          echo "::group::📋 Health Check Summary"
+          
+          # Determine overall status
+          SYSTEM_STATUS="${{ steps.system-check.outputs.status || 'healthy' }}"
+          SERVICES_STATUS="${{ steps.services-check.outputs.status || 'healthy' }}"
+          STATE_STATUS="${{ steps.state-check.outputs.is-valid || 'true' }}"
+          CIRCUIT_STATUS="${{ steps.circuit-check.outputs.status || 'healthy' }}"
+          SLA_STATUS="${{ steps.sla-check.outputs.status || 'healthy' }}"
+          
+          # Convert boolean to status for state
+          if [ "$STATE_STATUS" = "true" ]; then
+            STATE_STATUS="healthy"
+          else
+            STATE_STATUS="error"
+          fi
+          
+          # Determine worst status
+          OVERALL_STATUS="healthy"
+          
+          for status in "$SYSTEM_STATUS" "$SERVICES_STATUS" "$STATE_STATUS" "$CIRCUIT_STATUS" "$SLA_STATUS"; do
+            case "$status" in
+              "error")
+                OVERALL_STATUS="error"
+                break
+                ;;
+              "warning")
+                if [ "$OVERALL_STATUS" != "error" ]; then
+                  OVERALL_STATUS="warning"
+                fi
+                ;;
+            esac
+          done
+          
+          HEALTH_CHECK_END=$(date -u +%s)
+          HEALTH_CHECK_DURATION=$((HEALTH_CHECK_END - ${{ steps.init.outputs.health-check-start }}))
+          
+          echo "overall-status=$OVERALL_STATUS" >> $GITHUB_OUTPUT
+          echo "system-status=$SYSTEM_STATUS" >> $GITHUB_OUTPUT
+          echo "services-status=$SERVICES_STATUS" >> $GITHUB_OUTPUT
+          echo "state-status=$STATE_STATUS" >> $GITHUB_OUTPUT
+          echo "circuit-status=$CIRCUIT_STATUS" >> $GITHUB_OUTPUT
+          echo "sla-status=$SLA_STATUS" >> $GITHUB_OUTPUT
+          echo "duration=$HEALTH_CHECK_DURATION" >> $GITHUB_OUTPUT
+          
+          # Create health check report
+          HEALTH_REPORT=$(cat << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "overall_status": "$OVERALL_STATUS",
+            "check_type": "$CHECK_TYPE",
+            "duration_seconds": $HEALTH_CHECK_DURATION,
+            "components": {
+              "system": {
+                "status": "$SYSTEM_STATUS",
+                "issues": "${{ steps.system-check.outputs.issues || '' }}"
+              },
+              "services": {
+                "status": "$SERVICES_STATUS",
+                "issues": "${{ steps.services-check.outputs.issues || '' }}"
+              },
+              "state": {
+                "status": "$STATE_STATUS",
+                "issues": "${{ steps.state-check.outputs.validation-errors || '' }}"
+              },
+              "circuit_breaker": {
+                "status": "$CIRCUIT_STATUS",
+                "issues": "${{ steps.circuit-check.outputs.issues || '' }}"
+              },
+              "sla": {
+                "status": "$SLA_STATUS",
+                "issues": "${{ steps.sla-check.outputs.issues || '' }}"
+              }
+            }
+          }
+        EOF
+        )
+          
+          echo "$HEALTH_REPORT" > ".github/reliability/health-checks/health-report-$(date +%Y%m%d-%H%M%S).json"
+          
+          echo ""
+          echo "🏥 FSL Continuum Health Check Summary"
+          echo "===================================="
+          echo "Overall Status: $OVERALL_STATUS"
+          echo "Duration: ${HEALTH_CHECK_DURATION}s"
+          echo ""
+          echo "Components:"
+          echo "  💻 System: $SYSTEM_STATUS"
+          echo "  🌐 Services: $SERVICES_STATUS"
+          echo "  🔍 State: $STATE_STATUS"
+          echo "  🔌 Circuit Breaker: $CIRCUIT_STATUS"
+          echo "  📊 SLA: $SLA_STATUS"
+          echo ""
+          
+          if [ "$OVERALL_STATUS" != "healthy" ]; then
+            echo "⚠️ Issues detected - see detailed logs above"
+          else
+            echo "✅ All systems healthy"
+          fi
+          
+          echo "::endgroup::"
+      
+      - name: 🚨 Create Issue for Critical Failures
+        if: ${{ env.CREATE_ISSUES == 'true' && steps.summary.outputs.overall-status == 'error' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const overallStatus = '${{ steps.summary.outputs.overall-status }}';
+            const systemStatus = '${{ steps.summary.outputs.system-status }}';
+            const servicesStatus = '${{ steps.summary.outputs.services-status }}';
+            const stateStatus = '${{ steps.summary.outputs.state-status }}';
+            const circuitStatus = '${{ steps.summary.outputs.circuit-status }}';
+            const slaStatus = '${{ steps.summary.outputs.sla-status }}';
+            const duration = '${{ steps.summary.outputs.duration }}';
+            
+            const issueBody = `
+            ## 🚨 FSL Continuum Reliability Alert
+            
+            **Overall Status:** ${overallStatus.toUpperCase()}
+            **Health Check Duration:** ${duration}s
+            **Timestamp:** ${new Date().toISOString()}
+            
+            ### Component Status
+            - 💻 **System:** ${systemStatus}
+            - 🌐 **Services:** ${servicesStatus}
+            - 🔍 **State:** ${stateStatus}
+            - 🔌 **Circuit Breaker:** ${circuitStatus}
+            - 📊 **SLA:** ${slaStatus}
+            
+            ### Issues Detected
+            ${{ steps.system-check.outputs.issues && `- System: ${{ steps.system-check.outputs.issues }}` || '' }}
+            ${{ steps.services-check.outputs.issues && `- Services: ${{ steps.services-check.outputs.issues }}` || '' }}
+            ${{ steps.state-check.outputs.validation-errors && `- State: ${{ steps.state-check.outputs.validation-errors }}` || '' }}
+            ${{ steps.circuit-check.outputs.issues && `- Circuit Breaker: ${{ steps.circuit-check.outputs.issues }}` || '' }}
+            ${{ steps.sla-check.outputs.issues && `- SLA: ${{ steps.sla-check.outputs.issues }}` || '' }}
+            
+            ### Next Steps
+            1. Investigate component failures
+            2. Implement corrective actions
+            3. Monitor recovery
+            4. Update reliability configurations if needed
+            
+            ### Investigation
+            - Check health check logs in Actions
+            - Review metrics in \`.github/reliability/metrics/\`
+            - Examine circuit breaker states in \`.github/reliability/circuit-breaker/\`
+            
+            ---
+            
+            🏷️ *Automatically created by FSL Reliability Health Check*
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Critical: FSL Continuum Health Check Failed - ${overallStatus.toUpperCase()}`,
+              body: issueBody,
+              labels: ['reliability', 'health-check', 'critical', 'incident']
+            });
+      
+      - name: 📢 Slack Notification
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            echo "::group::📢 Sending Slack Notification"
+            
+            OVERALL_STATUS="${{ steps.summary.outputs.overall-status }}"
+            DURATION="${{ steps.summary.outputs.duration }}"
+            
+            # Determine color based on status
+            case "$OVERALL_STATUS" in
+              "healthy") COLOR="good" ;;
+              "warning") COLOR="warning" ;;
+              "error") COLOR="danger" ;;
+              *) COLOR="warning" ;;
+            esac
+            
+            # Create emoji based on status
+            case "$OVERALL_STATUS" in
+              "healthy") EMOJI="✅" ;;
+              "warning") EMOJI="⚠️" ;;
+              "error") EMOJI="🚨" ;;
+              *) EMOJI="❓" ;;
+            esac
+            
+            SLACK_MESSAGE=$(cat << EOF
+            {
+              "attachments": [
+                {
+                  "color": "$COLOR",
+                  "title": "$EMOJI FSL Continuum Health Check",
+                  "fields": [
+                    {
+                      "title": "Overall Status",
+                      "value": "$OVERALL_STATUS",
+                      "short": true
+                    },
+                    {
+                      "title": "Duration",
+                      "value": "${DURATION}s",
+                      "short": true
+                    },
+                    {
+                      "title": "System",
+                      "value": "${{ steps.summary.outputs.system-status }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Services",
+                      "value": "${{ steps.summary.outputs.services-status }}",
+                      "short": true
+                    },
+                    {
+                      "title": "State",
+                      "value": "${{ steps.summary.outputs.state-status }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Circuit Breaker",
+                      "value": "${{ steps.summary.outputs.circuit-status }}",
+                      "short": true
+                    },
+                    {
+                      "title": "SLA",
+                      "value": "${{ steps.summary.outputs.sla-status }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    }
+                  ],
+                  "footer": "FSL Reliability Health Check",
+                  "ts": $(date +%s)
+                }
+              ]
+            }
+        EOF
+            )
+            
+            curl -X POST "$SLACK_WEBHOOK_URL" \
+              -H 'Content-Type: application/json' \
+              -d "$SLACK_MESSAGE" || echo "Slack notification failed"
+            
+            echo "✅ Slack notification sent"
+            echo "::endgroup::"
+          else
+            echo "ℹ️ Slack webhook not configured, skipping notification"
+          fi
+      
+      - name: 📊 Health Check Report
+        shell: bash
+        run: |
+          echo "::group::📊 Health Check Report"
+          echo ""
+          echo "## 🏥 FSL Continuum Health Check Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Check Type: `$CHECK_TYPE`" >> $GITHUB_STEP_SUMMARY
+          echo "- Severity Threshold: `$SEVERITY_THRESHOLD`" >> $GITHUB_STEP_SUMMARY
+          echo "- Create Issues: `$CREATE_ISSUES`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall Status:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: `${{ steps.summary.outputs.overall-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- Duration: `${{ steps.summary.outputs.duration }}s`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Component Status:**" >> $GITHUB_STEP_SUMMARY
+          echo "- 💻 System: `${{ steps.summary.outputs.system-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌐 Services: `${{ steps.summary.outputs.services-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 State: `${{ steps.summary.outputs.state-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔌 Circuit Breaker: `${{ steps.summary.outputs.circuit-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 SLA: `${{ steps.summary.outputs.sla-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Add component details if there are issues
+          if [ -n "${{ steps.system-check.outputs.issues }}" ]; then
+            echo "### 💻 System Issues:" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.system-check.outputs.issues }}" | tr ';' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -n "${{ steps.services-check.outputs.issues }}" ]; then
+            echo "### 🌐 Service Issues:" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.services-check.outputs.issues }}" | tr ';' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -n "${{ steps.state-check.outputs.validation-errors }}" ]; then
+            echo "### 🔍 State Issues:" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.state-check.outputs.validation-errors }}" | tr ';' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -n "${{ steps.circuit-check.outputs.issues }}" ]; then
+            echo "### 🔌 Circuit Breaker Issues:" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.circuit-check.outputs.issues }}" | tr ';' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -n "${{ steps.sla-check.outputs.issues }}" ]; then
+            echo "### 📊 SLA Issues:" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.sla-check.outputs.issues }}" | tr ';' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "🏥 *Comprehensive reliability monitoring with proactive health checks*" >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "✅ Health check report generated"
+          echo "::endgroup::"

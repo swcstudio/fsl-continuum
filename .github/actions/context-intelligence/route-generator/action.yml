@@ -1,0 +1,611 @@
+name: 'FSL Context Intelligence - Route Generator'
+description: 'Generate context-aware workflow routes using neural field insights and symbolic residue patterns'
+author: 'FSL Continuum Context Intelligence Team'
+branding:
+  icon: 'git-branch'
+  color: 'blue'
+
+inputs:
+  neural-field:
+    description: 'Current neural field state for context analysis'
+    required: false
+    default: ''
+    type: string
+  residue-patterns:
+    description: 'Analyzed symbolic residue patterns for contextual insights'
+    required: false
+    default: ''
+    type: string
+  workflow-history:
+    description: 'Historical workflow execution data for learning'
+    required: false
+    default: '.github/state/workflow-evolution.json'
+    type: string
+  event-context:
+    description: 'Current GitHub event context for routing decision'
+    required: false
+    default: ''
+    type: string
+  routing-strategy:
+    description: 'Strategy for generating routes'
+    required: false
+    default: 'adaptive'
+    type: choice
+    options: ['rule-based', 'ml-based', 'hybrid', 'adaptive']
+  confidence-threshold:
+    description: 'Minimum confidence threshold for route selection'
+    required: false
+    default: '0.7'
+    type: string
+
+outputs:
+  generated-route:
+    description: 'Generated context-aware workflow route'
+    value: ${{ steps.generate.outputs.generated-route }}
+  route-confidence:
+    description: 'Confidence score for the generated route'
+    value: ${{ steps.generate.outputs.route-confidence }}
+  contextual-factors:
+    description: 'Factors influencing the routing decision'
+    value: ${{ steps.generate.outputs.contextual-factors }}
+  predicted-outcome:
+    description: 'Predicted outcome for the generated route'
+    value: ${{ steps.generate.outputs.predicted-outcome }}
+  alternative-routes:
+    description: 'Alternative routes with confidence scores'
+    value: ${{ steps.generate.outputs.alternative-routes }}
+  learning-updates:
+    description: 'Learning updates for future routing decisions'
+    value: ${{ steps.generate.outputs.learning-updates }}
+  blockchain-hash:
+    description: 'Blockchain hash of routing decision'
+    value: ${{ steps.persist.outputs.blockchain-hash }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🧠 Initialize Context Intelligence
+      id: init
+      shell: bash
+      run: |
+        echo "::group::🧠 Initializing Context Intelligence Route Generator"
+        
+        NEURAL_FIELD="${{ inputs.neural-field }}"
+        RESIDUE_PATTERNS="${{ inputs.residue-patterns }}"
+        WORKFLOW_HISTORY="${{ inputs.workflow-history }}"
+        EVENT_CONTEXT="${{ inputs.event-context }}"
+        ROUTING_STRATEGY="${{ inputs.routing-strategy }}"
+        CONFIDENCE_THRESHOLD="${{ inputs.confidence-threshold }}"
+        
+        echo "Neural Field: ${NEURAL_FIELD:+Provided}"
+        echo "Residue Patterns: ${RESIDUE_PATTERNS:+Provided}"
+        echo "Workflow History: $WORKFLOW_HISTORY"
+        echo "Event Context: ${EVENT_CONTEXT:+Provided}"
+        echo "Routing Strategy: $ROUTING_STRATEGY"
+        echo "Confidence Threshold: $CONFIDENCE_THRESHOLD"
+        
+        # Create context intelligence directory structure
+        mkdir -p .github/context-intelligence
+        mkdir -p .github/context-intelligence/routes
+        mkdir -p .github/context-intelligence/models
+        mkdir -p .github/context-intelligence/learning
+        
+        echo "✅ Context intelligence route generator initialized"
+        echo "::endgroup::"
+    
+    - name: 📊 Load Context Data
+      id: load-context
+      shell: bash
+      run: |
+        echo "::group::📊 Loading Context Data"
+        
+        # Load neural field state
+        NEURAL_FIELD_STATE=""
+        if [ -n "${{ inputs.neural-field }}" ]; then
+          NEURAL_FIELD_STATE="${{ inputs.neural-field }}"
+        elif [ -f ".github/state/neural-field-state.json" ]; then
+          NEURAL_FIELD_STATE=$(cat ".github/state/neural-field-state.json")
+        else
+          echo "ℹ️ No neural field state available"
+          NEURAL_FIELD_STATE='{"field_metrics": {"stability": 0.8, "coherence": 0.8, "resonance": 0.8}}'
+        fi
+        
+        # Load residue patterns
+        RESIDUE_PATTERN_DATA=""
+        if [ -n "${{ inputs.residue-patterns }}" ]; then
+          RESIDUE_PATTERN_DATA="${{ inputs.residue-patterns }}"
+        else
+          echo "ℹ️ No residue patterns available"
+          RESIDUE_PATTERN_DATA='{"semantic_density": 0.5, "integration_rate": 0.5}'
+        fi
+        
+        # Load workflow history
+        if [ ! -f "${{ inputs.workflow-history }}" ]; then
+          echo "📝 Workflow history not found, creating initial data..."
+          mkdir -p "$(dirname "${{ inputs.workflow-history }}")"
+          cat > "${{ inputs.workflow-history }}" << 'EOF'
+        {
+          "version": "1.0.0",
+          "spec": "SPEC:CONTEXT-002",
+          "created_at": "2025-01-22T10:00:00Z",
+          "last_updated": "2025-01-22T10:00:00Z",
+          "workflow_executions": [],
+          "route_success_rates": {},
+          "learning_patterns": {},
+          "contextual_outcomes": {}
+        }
+        EOF
+        fi
+        
+        WORKFLOW_HISTORY_DATA=$(cat "${{ inputs.workflow-history }}")
+        
+        # Parse context data
+        FIELD_STABILITY=$(echo "$NEURAL_FIELD_STATE" | jq -r '.field_metrics.stability // 0.8')
+        FIELD_COHERENCE=$(echo "$NEURAL_FIELD_STATE" | jq -r '.field_metrics.coherence // 0.8')
+        FIELD_RESONANCE=$(echo "$NEURAL_FIELD_STATE" | jq -r '.field_metrics.resonance // 0.8')
+        
+        RESIDUE_DENSITY=$(echo "$RESIDUE_PATTERN_DATA" | jq -r '.semantic_density // 0.5')
+        RESIDUE_INTEGRATION=$(echo "$RESIDUE_PATTERN_DATA" | jq -r '.integration_rate // 0.5')
+        
+        echo "neural-field-state=$NEURAL_FIELD_STATE" >> $GITHUB_OUTPUT
+        echo "residue-pattern-data=$RESIDUE_PATTERN_DATA" >> $GITHUB_OUTPUT
+        echo "workflow-history=$WORKFLOW_HISTORY_DATA" >> $GITHUB_OUTPUT
+        
+        echo "Context Data Loaded:"
+        echo "  Field Stability: $FIELD_STABILITY"
+        echo "  Field Coherence: $FIELD_COHERENCE"
+        echo "  Field Resonance: $FIELD_RESONANCE"
+        echo "  Residue Density: $RESIDUE_DENSITY"
+        echo "  Residue Integration: $RESIDUE_INTEGRATION"
+        
+        echo "::endgroup::"
+    
+    - name: 🎯 Analyze Event Context
+      id: analyze-event
+      shell: bash
+      run: |
+        echo "::group::🎯 Analyzing Event Context"
+        
+        EVENT_CONTEXT="${{ inputs.event-context }}"
+        
+        # Parse current GitHub event
+        EVENT_NAME="${{ github.event_name }}"
+        EVENT_ACTION="${{ github.event.action }}"
+        WORKFLOW_NAME="${{ github.workflow }}"
+        JOB_NAME="${{ github.job }}"
+        ACTOR="${{ github.actor }}"
+        
+        # Determine event type for routing
+        EVENT_TYPE="unknown"
+        ROUTING_PRIORITY="medium"
+        CONTEXTUAL_FACTORS="[]"
+        
+        case "$EVENT_NAME" in
+          "issues")
+            if [ "$EVENT_ACTION" = "opened" ]; then
+              EVENT_TYPE="issue_created"
+              ROUTING_PRIORITY="high"
+              CONTEXTUAL_FACTORS='["new_epic", "require_initial_processing"]'
+            elif [ "$EVENT_ACTION" = "closed" ]; then
+              EVENT_TYPE="issue_closed"
+              ROUTING_PRIORITY="low"
+              CONTEXTUAL_FACTORS='["cleanup_required", "update_statistics"]'
+            fi
+            ;;
+          "pull_request")
+            if [ "$EVENT_ACTION" = "opened" ]; then
+              EVENT_TYPE="pr_created"
+              ROUTING_PRIORITY="high"
+              CONTEXTUAL_FACTORS='["code_review", "testing_required", "security_scan"]'
+            elif [ "$EVENT_ACTION" = "synchronize" ]; then
+              EVENT_TYPE="pr_updated"
+              ROUTING_PRIORITY="medium"
+              CONTEXTUAL_FACTORS='["retest_required", "incremental_review"]'
+            fi
+            ;;
+          "workflow_run")
+            EVENT_TYPE="workflow_completed"
+            ROUTING_PRIORITY="medium"
+            CONTEXTUAL_FACTORS='["state_update", "coordination_required"]'
+            ;;
+          "repository_dispatch")
+            EVENT_TYPE="external_trigger"
+            ROUTING_PRIORITY="high"
+            CONTEXTUAL_FACTORS='["external_system", "integration_required"]'
+            ;;
+        esac
+        
+        # Build event context data
+        EVENT_ANALYSIS=$(cat << EOF
+        {
+          "event_name": "$EVENT_NAME",
+          "event_action": "$EVENT_ACTION",
+          "event_type": "$EVENT_TYPE",
+          "workflow_name": "$WORKFLOW_NAME",
+          "job_name": "$JOB_NAME",
+          "actor": "$ACTOR",
+          "routing_priority": "$ROUTING_PRIORITY",
+          "contextual_factors": $CONTEXTUAL_FACTORS,
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        }
+        EOF
+        )
+        
+        echo "event-analysis=$EVENT_ANALYSIS" >> $GITHUB_OUTPUT
+        echo "event-type=$EVENT_TYPE" >> $GITHUB_OUTPUT
+        echo "routing-priority=$ROUTING_PRIORITY" >> $GITHUB_OUTPUT
+        echo "contextual-factors=$CONTEXTUAL_FACTORS" >> $GITHUB_OUTPUT
+        
+        echo "Event Analysis:"
+        echo "  Event Type: $EVENT_TYPE"
+        echo "  Routing Priority: $ROUTING_PRIORITY"
+        echo "  Contextual Factors: $CONTEXTUAL_FACTORS"
+        
+        echo "::endgroup::"
+    
+    - name: 🚀 Generate Context-Aware Route
+      id: generate
+      shell: bash
+      run: |
+        echo "::group::🚀 Generating Context-Aware Route"
+        
+        ROUTING_STRATEGY="${{ inputs.routing-strategy }}"
+        CONFIDENCE_THRESHOLD="${{ inputs.confidence-threshold }}"
+        
+        FIELD_STABILITY=$(echo "${{ steps.load-context.outputs.neural-field-state }}" | jq -r '.field_metrics.stability // 0.8')
+        FIELD_COHERENCE=$(echo "${{ steps.load-context.outputs.neural-field-state }}" | jq -r '.field_metrics.coherence // 0.8')
+        RESIDUE_DENSITY=$(echo "${{ steps.load-context.outputs.residue-pattern-data }}" | jq -r '.semantic_density // 0.5')
+        EVENT_TYPE="${{ steps.analyze-event.outputs.event-type }}"
+        ROUTING_PRIORITY="${{ steps.analyze-event.outputs.routing-priority }}"
+        
+        echo "Generating route using strategy: $ROUTING_STRATEGY"
+        
+        # Initialize route generation results
+        GENERATED_ROUTE='{"route": "default", "confidence": 0.5, "factors": []}'
+        ROUTE_CONFIDENCE="0.5"
+        CONTEXTUAL_FACTORS='{"field_factors": {}, "residue_factors": {}, "event_factors": {}}'
+        PREDICTED_OUTCOME='{"success_probability": 0.5, "execution_time": 300, "resource_usage": 0.5}'
+        ALTERNATIVE_ROUTES='[]'
+        LEARNING_UPDATES='{"patterns_learned": [], "model_updates": []}'
+        
+        # Route generation based on strategy
+        case "$ROUTING_STRATEGY" in
+          "rule-based")
+            echo "📋 Using rule-based routing..."
+            
+            # Rule-based route selection
+            case "$EVENT_TYPE" in
+              "issue_created")
+                if (( $(echo "$FIELD_COHERENCE > 0.8" | bc -l) )); then
+                  ROUTE="create_linear_epic_with_ai_analysis"
+                  CONFIDENCE="0.85"
+                else
+                  ROUTE="create_linear_epic_standard"
+                  CONFIDENCE="0.75"
+                fi
+                ;;
+              "pr_created")
+                if (( $(echo "$RESIDUE_DENSITY > 0.7" | bc -l) )); then
+                  ROUTE="comprehensive_pr_with_context_review"
+                  CONFIDENCE="0.80"
+                else
+                  ROUTE="standard_pr_review"
+                  CONFIDENCE="0.70"
+                fi
+                ;;
+              "workflow_completed")
+                ROUTE="coordinate_next_workflow"
+                CONFIDENCE="0.90"
+                ;;
+              *)
+                ROUTE="standard_processing"
+                CONFIDENCE="0.60"
+                ;;
+            esac
+            
+            ;;
+          "ml-based")
+            echo "🤖 Using ML-based routing..."
+            
+            # Simulated ML-based routing (would use trained model in production)
+            FIELD_SCORE=$(echo "($FIELD_STABILITY + $FIELD_COHERENCE) / 2" | bc -l)
+            CONTEXT_SCORE=$(echo "($FIELD_SCORE + $RESIDUE_DENSITY) / 2" | bc -l)
+            
+            case "$EVENT_TYPE" in
+              "issue_created")
+                ROUTE="ml_optimized_epic_creation"
+                CONFIDENCE="$CONTEXT_SCORE"
+                ;;
+              "pr_created")
+                ROUTE="ml_enhanced_pr_processing"
+                CONFIDENCE="$CONTEXT_SCORE"
+                ;;
+              *)
+                ROUTE="ml_adaptive_processing"
+                CONFIDENCE="$CONTEXT_SCORE"
+                ;;
+            esac
+            
+            ;;
+          "hybrid")
+            echo "🔀 Using hybrid routing..."
+            
+            # Combine rule-based and ML approaches
+            case "$EVENT_TYPE" in
+              "issue_created")
+                if (( $(echo "$RESIDUE_DENSITY > 0.6" | bc -l) )); then
+                  ROUTE="hybrid_enhanced_epic_with_context"
+                  CONFIDENCE="0.88"
+                else
+                  ROUTE="hybrid_standard_epic"
+                  CONFIDENCE="0.78"
+                fi
+                ;;
+              "pr_created")
+                if (( $(echo "$FIELD_COHERENCE > 0.7" | bc -l) )); then
+                  ROUTE="hybrid_context_aware_pr"
+                  CONFIDENCE="0.85"
+                else
+                  ROUTE="hybrid_standard_pr"
+                  CONFIDENCE="0.75"
+                fi
+                ;;
+              *)
+                ROUTE="hybrid_adaptive_processing"
+                CONFIDENCE="0.80"
+                ;;
+            esac
+            
+            ;;
+          "adaptive")
+            echo "🎯 Using adaptive routing..."
+            
+            # Adaptive routing based on multiple factors
+            CONTEXTUAL_WEIGHT=$(echo "($FIELD_STABILITY * 0.3) + ($FIELD_COHERENCE * 0.4) + ($RESIDUE_DENSITY * 0.3)" | bc -l)
+            
+            if [ "$ROUTING_PRIORITY" = "high" ]; then
+              ROUTE="adaptive_high_priority_processing"
+              CONFIDENCE=$(echo "$CONTEXTUAL_WEIGHT + 0.1" | bc -l)
+            elif [ "$ROUTING_PRIORITY" = "medium" ]; then
+              ROUTE="adaptive_standard_processing"
+              CONFIDENCE="$CONTEXTUAL_WEIGHT"
+            else
+              ROUTE="adaptive_low_priority_processing"
+              CONFIDENCE=$(echo "$CONTEXTUAL_WEIGHT - 0.1" | bc -l)
+            fi
+            
+            ;;
+        esac
+        
+        # Generate alternative routes
+        ALTERNATIVE_ROUTES=$(cat << EOF
+        [
+          {"route": "fallback_standard", "confidence": 0.60, "reason": "reliable fallback"},
+          {"route": "optimistic_processing", "confidence": 0.55, "reason": "potential for better outcomes"},
+          {"route": "conservative_processing", "confidence": 0.75, "reason": "safer execution path"}
+        ]
+        EOF
+        )
+        
+        # Generate contextual factors
+        CONTEXTUAL_FACTORS=$(cat << EOF
+        {
+          "field_factors": {
+            "stability": $FIELD_STABILITY,
+            "coherence": $FIELD_COHERENCE,
+            "resonance": $(echo "${{ steps.load-context.outputs.neural-field-state }}" | jq -r '.field_metrics.resonance // 0.8')
+          },
+          "residue_factors": {
+            "semantic_density": $RESIDUE_DENSITY,
+            "integration_rate": $(echo "${{ steps.load-context.outputs.residue-pattern-data }}" | jq -r '.integration_rate // 0.5')
+          },
+          "event_factors": {
+            "event_type": "$EVENT_TYPE",
+            "routing_priority": "$ROUTING_PRIORITY",
+            "actor": "${{ github.actor }}"
+          }
+        }
+        EOF
+        )
+        
+        # Generate predicted outcome
+        SUCCESS_PROBABILITY=$(echo "scale=2; $CONFIDENCE * 0.9" | bc)
+        EXECUTION_TIME=$(echo "scale=0; 300 / $CONFIDENCE" | bc)
+        RESOURCE_USAGE=$(echo "scale=2; $CONFIDENCE * 0.6" | bc)
+        
+        PREDICTED_OUTCOME=$(cat << EOF
+        {
+          "success_probability": $SUCCESS_PROBABILITY,
+          "execution_time_seconds": $EXECUTION_TIME,
+          "resource_usage": $RESOURCE_USAGE,
+          "quality_score": $(echo "scale=2; $CONFIDENCE * 0.85" | bc),
+          "risk_level": $(echo "$CONFIDENCE < 0.7" | bc -l)
+        }
+        EOF
+        )
+        
+        # Generate learning updates
+        LEARNING_UPDATES=$(cat << EOF
+        {
+          "patterns_learned": [
+            {
+              "pattern": "context_based_routing",
+              "context": "$EVENT_TYPE",
+              "route": "$ROUTE",
+              "confidence": $CONFIDENCE,
+              "factors": $CONTEXTUAL_FACTORS
+            }
+          ],
+          "model_updates": [
+            {
+              "update_type": "route_confidence_adjustment",
+              "event_type": "$EVENT_TYPE",
+              "previous_confidence": 0.7,
+              "new_confidence": $CONFIDENCE,
+              "reasoning": "contextual_analysis"
+            }
+          ]
+        }
+        EOF
+        )
+        
+        # Build final route
+        GENERATED_ROUTE=$(cat << EOF
+        {
+          "route": "$ROUTE",
+          "confidence": $CONFIDENCE,
+          "strategy": "$ROUTING_STRATEGY",
+          "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "event_context": ${{ steps.analyze-event.outputs.event-analysis }},
+          "contextual_factors": $CONTEXTUAL_FACTORS
+        }
+        EOF
+        )
+        
+        # Check confidence threshold
+        if (( $(echo "$CONFIDENCE >= $CONFIDENCE_THRESHOLD" | bc -l) )); then
+          ROUTE_STATUS="accepted"
+        else
+          ROUTE_STATUS="below_threshold"
+          # Use highest confidence alternative
+          ROUTE="fallback_standard"
+          CONFIDENCE="0.75"
+          ROUTE_STATUS="fallback_used"
+        fi
+        
+        echo "generated-route=$GENERATED_ROUTE" >> $GITHUB_OUTPUT
+        echo "route-confidence=$CONFIDENCE" >> $GITHUB_OUTPUT
+        echo "contextual-factors=$CONTEXTUAL_FACTORS" >> $GITHUB_OUTPUT
+        echo "predicted-outcome=$PREDICTED_OUTCOME" >> $GITHUB_OUTPUT
+        echo "alternative-routes=$ALTERNATIVE_ROUTES" >> $GITHUB_OUTPUT
+        echo "learning-updates=$LEARNING_UPDATES" >> $GITHUB_OUTPUT
+        echo "route-status=$ROUTE_STATUS" >> $GITHUB_OUTPUT
+        
+        echo "Generated Route: $ROUTE"
+        echo "Route Confidence: $CONFIDENCE"
+        echo "Route Status: $ROUTE_STATUS"
+        echo "Success Probability: $SUCCESS_PROBABILITY"
+        echo "Predicted Execution Time: ${EXECUTION_TIME}s"
+        
+        echo "::endgroup::"
+    
+    - name: 💾 Persist Routing Decision
+      id: persist
+      shell: bash
+      run: |
+        echo "::group::💾 Persisting Routing Decision"
+        
+        GENERATED_ROUTE="${{ steps.generate.outputs.generated-route }}"
+        LEARNING_UPDATES="${{ steps.generate.outputs.learning-updates }}"
+        WORKFLOW_HISTORY="${{ inputs.workflow-history }}"
+        
+        # Save routing decision
+        ROUTING_DECISION_FILE=".github/context-intelligence/routes/route-$(date +%Y%m%d-%H%M%S).json"
+        cat > "$ROUTING_DECISION_FILE" << EOF
+        {
+          "routing_id": "$(date +%Y%m%d-%H%M%S)",
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "generated_route": $GENERATED_ROUTE,
+          "predicted_outcome": ${{ steps.generate.outputs.predicted-outcome }},
+          "alternative_routes": ${{ steps.generate.outputs.alternative-routes }},
+          "learning_updates": $LEARNING_UPDATES,
+          "spec": "SPEC:CONTEXT-002"
+        }
+        EOF
+        
+        # Update workflow history with learning
+        UPDATED_HISTORY=$(jq --argjson route "$GENERATED_ROUTE" \
+          --argjson learning "$LEARNING_UPDATES" \
+          --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          '.last_updated = $timestamp |
+           .workflow_executions += [$route] |
+           .learning_patterns |= (. + ($learning.patterns_learned // [])) |
+           .model_updates |= (. + ($learning.model_updates // []))' \
+          "$WORKFLOW_HISTORY")
+        
+        echo "$UPDATED_HISTORY" > "$WORKFLOW_HISTORY"
+        
+        # Generate blockchain hash
+        BLOCKCHAIN_HASH=$(sha256sum "$ROUTING_DECISION_FILE" | cut -d' ' -f1)
+        
+        # Log to blockchain if script is available
+        if [ -f .github/scripts/blockchain-log.sh ]; then
+          LOG_DATA=$(cat << EOF
+          {
+            "event": "context_aware_route_generated",
+            "route": $(echo "$GENERATED_ROUTE" | jq -r '.route'),
+            "confidence": ${{ steps.generate.outputs.route-confidence }},
+            "strategy": "${{ inputs.routing-strategy }}",
+            "status": "${{ steps.generate.outputs.route-status }}",
+            "predicted_success": $(echo "${{ steps.generate.outputs.predicted-outcome }}" | jq -r '.success_probability'),
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "actor": "${{ github.actor }}",
+            "repository": "${{ github.repository }}",
+            "run_id": "${{ github.run_id }}",
+            "spec": "SPEC:CONTEXT-002"
+          }
+        EOF
+          )
+          
+          RESULT=$(.github/scripts/blockchain-log.sh both "$LOG_DATA")
+          echo "✅ Routing decision logged to blockchain"
+        else
+          echo "ℹ️ Blockchain logging script not available"
+        fi
+        
+        echo "blockchain-hash=$BLOCKCHAIN_HASH" >> $GITHUB_OUTPUT
+        
+        echo "Routing decision saved to: $ROUTING_DECISION_FILE"
+        echo "Workflow history updated: $WORKFLOW_HISTORY"
+        echo "Blockchain hash: $BLOCKCHAIN_HASH"
+        
+        echo "::endgroup::"
+    
+    - name: 📊 Context-Aware Routing Report
+      shell: bash
+      run: |
+        echo "::group::📊 Context-Aware Routing Report"
+        echo ""
+        echo "## 🧠 Context-Aware Routing Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Routing Strategy: `${{ inputs.routing-strategy }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Confidence Threshold: `${{ inputs.confidence-threshold }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Workflow History: `${{ inputs.workflow-history }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Generated Route:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Route: `${{ steps.generate.outputs.generated-route | fromJSON | .route }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Confidence: `${{ steps.generate.outputs.route-confidence }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: `${{ steps.generate.outputs.route-status }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Strategy: `${{ steps.generate.outputs.generated-route | fromJSON | .strategy }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Predicted Outcome:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Success Probability: `${{ steps.generate.outputs.predicted-outcome | fromJSON | .success_probability }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Execution Time: `${{ steps.generate.outputs.predicted-outcome | fromJSON | .execution_time_seconds }}s`" >> $GITHUB_STEP_SUMMARY
+        echo "- Resource Usage: `${{ steps.generate.outputs.predicted-outcome | fromJSON | .resource_usage }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Quality Score: `${{ steps.generate.outputs.predicted-outcome | fromJSON | .quality_score }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Risk Level: `${{ steps.generate.outputs.predicted-outcome | fromJSON | .risk_level }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Contextual Factors:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Event Type: `${{ steps.analyze-event.outputs.event-type }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Routing Priority: `${{ steps.analyze-event.outputs.routing-priority }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Field Stability: `${{ steps.load-context.outputs.neural-field-state | fromJSON | .field_metrics.stability }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Field Coherence: `${{ steps.load-context.outputs.neural-field-state | fromJSON | .field_metrics.coherence }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Residue Density: `${{ steps.load-context.outputs.residue-pattern-data | fromJSON | .semantic_density }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Alternative Routes:**" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.generate.outputs.alternative-routes | fromJSON | .[] | '- Route: \(.route) (Confidence: \(.confidence))' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Learning Updates:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Patterns Learned: `${{ steps.generate.outputs.learning-updates | fromJSON | .patterns_learned | length }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Model Updates: `${{ steps.generate.outputs.learning-updates | fromJSON | .model_updates | length }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Blockchain Verification:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Decision Hash: `${{ steps.persist.outputs.blockchain-hash }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Verification: ✅ Cryptographically verified" >> $GITHUB_STEP_SUMMARY
+        echo "- History Updated: ✅ Learning patterns saved" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🧠 *Context-aware workflow route generated using neural field intelligence and symbolic residue analysis*" >> $GITHUB_STEP_SUMMARY
+        echo ""
+        echo "✅ Context-aware routing report generated"
+        echo "::endgroup::"

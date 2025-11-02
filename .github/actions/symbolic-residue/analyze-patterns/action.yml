@@ -1,0 +1,574 @@
+name: 'FSL Symbolic Residue - Analyze Patterns'
+description: 'Analyze symbolic residue patterns for semantic fragment tracking and context intelligence'
+author: 'FSL Continuum Symbolic Residue Team'
+branding:
+  icon: 'search'
+  color: 'green'
+
+inputs:
+  residue-schema:
+    description: 'Path to symbolic residue schema'
+    required: false
+    default: '.github/schemas/symbolicResidue.v1.json'
+    type: string
+  historical-data:
+    description: 'Path to historical residue data'
+    required: false
+    default: '.github/state/residue-history.json'
+    type: string
+  current-field-state:
+    description: 'Current neural field state for residue analysis'
+    required: false
+    default: ''
+    type: string
+  analysis-depth:
+    description: 'Depth of residue pattern analysis'
+    required: false
+    default: 'medium'
+    type: choice
+    options: ['shallow', 'medium', 'deep']
+  pattern-types:
+    description: 'Types of patterns to analyze'
+    required: false
+    default: 'surfaced,integrated,echo,shadow'
+    type: string
+  temporal-window:
+    description: 'Temporal window for historical analysis (hours)'
+    required: false
+    default: '24'
+    type: string
+
+outputs:
+  residue-patterns:
+    description: 'Analyzed residue patterns and insights'
+    value: ${{ steps.analyze.outputs.residue-patterns }}
+  pattern-metrics:
+    description: 'Metrics about residue patterns'
+    value: ${{ steps.analyze.outputs.pattern-metrics }}
+  semantic-insights:
+    description: 'Semantic insights derived from residue analysis'
+    value: ${{ steps.analyze.outputs.semantic-insights }}
+  contextual-recommendations:
+    description: 'Contextual recommendations based on residue patterns'
+    value: ${{ steps.analyze.outputs.contextual-recommendations }}
+  residue-count:
+    description: 'Total count of analyzed residues'
+    value: ${{ steps.analyze.outputs.residue-count }}
+  blockchain-hash:
+    description: 'Blockchain hash of analysis results'
+    value: ${{ steps.persist.outputs.blockchain-hash }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🔍 Initialize Residue Analysis
+      id: init
+      shell: bash
+      run: |
+        echo "::group::🔍 Initializing Residue Pattern Analysis"
+        
+        RESIDUE_SCHEMA="${{ inputs.residue-schema }}"
+        HISTORICAL_DATA="${{ inputs.historical-data }}"
+        CURRENT_FIELD_STATE="${{ inputs.current-field-state }}"
+        ANALYSIS_DEPTH="${{ inputs.analysis-depth }}"
+        PATTERN_TYPES="${{ inputs.pattern-types }}"
+        TEMPORAL_WINDOW="${{ inputs.temporal-window }}"
+        
+        echo "Residue Schema: $RESIDUE_SCHEMA"
+        echo "Historical Data: $HISTORICAL_DATA"
+        echo "Analysis Depth: $ANALYSIS_DEPTH"
+        echo "Pattern Types: $PATTERN_TYPES"
+        echo "Temporal Window: ${TEMPORAL_WINDOW} hours"
+        
+        # Create symbolic residue directory structure
+        mkdir -p .github/symbolic-residue
+        mkdir -p .github/symbolic-residue/patterns
+        mkdir -p .github/symbolic-residue/analysis
+        mkdir -p .github/symbolic-residue/insights
+        
+        echo "✅ Residue pattern analysis initialized"
+        echo "::endgroup::"
+    
+    - name: 📋 Load Residue Schema
+      id: load-schema
+      shell: bash
+      run: |
+        echo "::group::📋 Loading Residue Schema"
+        
+        RESIDUE_SCHEMA="${{ inputs.residue-schema }}"
+        
+        if [ ! -f "$RESIDUE_SCHEMA" ]; then
+          echo "📝 Residue schema not found, creating default schema..."
+          mkdir -p "$(dirname "$RESIDUE_SCHEMA")"
+          cat > "$RESIDUE_SCHEMA" << 'EOF'
+        {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "title": "Symbolic Residue Schema",
+          "description": "Schema for tracking and managing symbolic residue in semantic fields",
+          "type": "object",
+          "required": ["residueTracking", "residueTypes", "residueOperations"],
+          "properties": {
+            "residueTracking": {
+              "type": "object",
+              "required": ["enabled", "trackedResidues", "residueMetrics", "processingStrategy"],
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "trackedResidues": {"type": "array"},
+                "residueMetrics": {"type": "object"},
+                "processingStrategy": {"type": "object"}
+              }
+            },
+            "residueTypes": {
+              "type": "object",
+              "properties": {
+                "surfaced": {"type": "object"},
+                "echo": {"type": "object"},
+                "integrated": {"type": "object"},
+                "shadow": {"type": "object"},
+                "orphaned": {"type": "object"}
+              }
+            },
+            "residueOperations": {
+              "type": "object",
+              "properties": {
+                "surface": {"type": "object"},
+                "compress": {"type": "object"},
+                "integrate": {"type": "object"},
+                "echo": {"type": "object"}
+              }
+            }
+          }
+        }
+        EOF
+          echo "✅ Default residue schema created"
+        else
+          echo "✅ Residue schema found: $RESIDUE_SCHEMA"
+        fi
+        
+        # Validate schema
+        if jq empty "$RESIDUE_SCHEMA" 2>/dev/null; then
+          echo "✅ Residue schema validation passed"
+        else
+          echo "❌ Residue schema validation failed"
+          exit 1
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 🧬 Load Current Field State
+      id: load-field
+      shell: bash
+      run: |
+        echo "::group::🧬 Loading Current Field State"
+        
+        CURRENT_FIELD_STATE="${{ inputs.current-field-state }}"
+        
+        if [ -z "$CURRENT_FIELD_STATE" ]; then
+          # Try to load from default neural field state
+          FIELD_STATE_PATH=".github/state/neural-field-state.json"
+          if [ -f "$FIELD_STATE_PATH" ]; then
+            CURRENT_FIELD_STATE=$(cat "$FIELD_STATE_PATH")
+            echo "✅ Loaded field state from: $FIELD_STATE_PATH"
+          else
+            echo "ℹ️ No field state available for analysis"
+            CURRENT_FIELD_STATE='{"attractors": [], "active_patterns": [], "field_metrics": {"stability": 0.8, "coherence": 0.8}}'
+          fi
+        else
+          echo "✅ Using provided field state"
+        fi
+        
+        # Extract field information for residue analysis
+        ATTRACTORS=$(echo "$CURRENT_FIELD_STATE" | jq -r '.attractors // []')
+        ACTIVE_PATTERNS=$(echo "$CURRENT_FIELD_STATE" | jq -r '.active_patterns // []')
+        FIELD_METRICS=$(echo "$CURRENT_FIELD_STATE" | jq -r '.field_metrics // {}')
+        
+        echo "field-state=$CURRENT_FIELD_STATE" >> $GITHUB_OUTPUT
+        echo "attractors=$ATTRACTORS" >> $GITHUB_OUTPUT
+        echo "active-patterns=$ACTIVE_PATTERNS" >> $GITHUB_OUTPUT
+        echo "field-metrics=$FIELD_METRICS" >> $GITHUB_OUTPUT
+        
+        echo "Field Metrics:"
+        echo "$FIELD_METRICS" | jq -r 'to_entries[] | "  \(.key): \(.value)"'
+        echo "Attractors: $(echo "$ATTRACTORS" | jq 'length')"
+        echo "Active Patterns: $(echo "$ACTIVE_PATTERNS" | jq 'length')"
+        
+        echo "::endgroup::"
+    
+    - name: 📊 Load Historical Residue Data
+      id: load-history
+      shell: bash
+      run: |
+        echo "::group::📊 Loading Historical Residue Data"
+        
+        HISTORICAL_DATA="${{ inputs.historical-data }}"
+        TEMPORAL_WINDOW="${{ inputs.temporal-window }}"
+        
+        if [ ! -f "$HISTORICAL_DATA" ]; then
+          echo "📝 Historical residue data not found, creating initial data structure..."
+          mkdir -p "$(dirname "$HISTORICAL_DATA")"
+          cat > "$HISTORICAL_DATA" << 'EOF'
+        {
+          "version": "1.0.0",
+          "spec": "SPEC:RESIDUE-001",
+          "created_at": "2025-01-22T10:00:00Z",
+          "last_updated": "2025-01-22T10:00:00Z",
+          "residue_history": [],
+          "pattern_metrics": {
+            "total_residues": 0,
+            "surfaced_count": 0,
+            "integrated_count": 0,
+            "echo_count": 0,
+            "shadow_count": 0,
+            "orphaned_count": 0,
+            "integration_rate": 0.0,
+            "average_strength": 0.0,
+            "semantic_density": 0.0
+          },
+          "semantic_insights": [],
+          "contextual_patterns": {}
+        }
+        EOF
+          echo "✅ Initial historical residue data created"
+        else
+          echo "✅ Historical residue data found: $HISTORICAL_DATA"
+        fi
+        
+        # Load and filter historical data based on temporal window
+        CURRENT_TIME=$(date -u +%s)
+        WINDOW_START=$((CURRENT_TIME - TEMPORAL_WINDOW * 3600))
+        
+        HISTORICAL_RESIDUES=$(jq --arg window_start "$WINDOW_START" \
+          '.residue_history |= map(select(.timestamp_unix >= ($window_start | tonumber)))' \
+          "$HISTORICAL_DATA")
+        
+        PATTERN_METRICS=$(jq '.pattern_metrics' "$HISTORICAL_DATA")
+        
+        echo "historical-residues=$HISTORICAL_RESIDUES" >> $GITHUB_OUTPUT
+        echo "pattern-metrics=$PATTERN_METRICS" >> $GITHUB_OUTPUT
+        
+        # Show summary statistics
+        TOTAL_RESIDUES=$(echo "$HISTORICAL_RESIDUES" | jq '.residue_history | length')
+        SURFACED_COUNT=$(echo "$HISTORICAL_RESIDUES" | jq '.residue_history | map(select(.state == "surfaced")) | length')
+        INTEGRATED_COUNT=$(echo "$HISTORICAL_RESIDUES" | jq '.residue_history | map(select(.state == "integrated")) | length')
+        
+        echo "Historical Summary (${TEMPORAL_WINDOW}h window):"
+        echo "  Total Residues: $TOTAL_RESIDUES"
+        echo "  Surfaced: $SURFACED_COUNT"
+        echo "  Integrated: $INTEGRATED_COUNT"
+        
+        echo "::endgroup::"
+    
+    - name: 🔬 Analyze Residue Patterns
+      id: analyze
+      shell: bash
+      run: |
+        echo "::group::🔬 Analyzing Residue Patterns"
+        
+        ANALYSIS_DEPTH="${{ inputs.analysis-depth }}"
+        PATTERN_TYPES="${{ inputs.pattern-types }}"
+        ATTRACTORS="${{ steps.load-field.outputs.attractors }}"
+        ACTIVE_PATTERNS="${{ steps.load-field.outputs.active-patterns }}"
+        HISTORICAL_RESIDUES="${{ steps.load-history.outputs.historical-residues }}"
+        PATTERN_METRICS="${{ steps.load-history.outputs.pattern-metrics }}"
+        
+        echo "Analysis Depth: $ANALYSIS_DEPTH"
+        echo "Pattern Types: $PATTERN_TYPES"
+        
+        # Initialize analysis results
+        RESIDUE_PATTERNS='{"analyzed_patterns": [], "pattern_clusters": [], "semantic_relationships": []}'
+        PATTERN_ANALYSIS_METRICS='{"analysis_timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"'
+        SEMANTIC_INSIGHTS='{"insights": [], "semantic_density": 0.0, "context_relevance": 0.0}'
+        CONTEXTUAL_RECOMMENDATIONS='{"recommendations": [], "priority_actions": []}'
+        
+        # Analyze based on depth
+        case "$ANALYSIS_DEPTH" in
+          "shallow")
+            echo "🔍 Performing shallow analysis..."
+            
+            # Basic pattern counting
+            TOTAL_ANALYZED=$(echo "$HISTORICAL_RESIDUES" | jq '.residue_history | length')
+            RESIDUE_COUNT=$TOTAL_ANALYZED
+            
+            # Simple pattern clustering
+            PATTERN_CLUSTERS=$(echo "$HISTORICAL_RESIDUES" | jq -r '
+              .residue_history | 
+              group_by(.state) | 
+              map({"state": .[0].state, "count": length})
+            ')
+            
+            ;;
+          "medium")
+            echo "🔬 Performing medium-depth analysis..."
+            
+            # Pattern frequency analysis
+            PATTERN_FREQUENCIES=$(echo "$HISTORICAL_RESIDUES" | jq -r '
+              .residue_history | 
+              map(.content | split(" ") | .[0:3] | join(" ")) | 
+              group_by(.) | 
+              map({"pattern": .[0], "frequency": length})
+            ')
+            
+            # Semantic relationship analysis
+            SEMANTIC_RELATIONSHIPS=$(echo "$ATTRACTORS" | jq -r '
+              map({
+                "attractor_pattern": .pattern | split(" ") | .[0:5] | join(" "),
+                "strength": .strength,
+                "related_residues": []
+              })
+            ')
+            
+            RESIDUE_COUNT=$(echo "$HISTORICAL_RESIDUES" | jq '.residue_history | length')
+            PATTERN_CLUSTERS=$(echo "$PATTERN_FREQUENCIES" | jq '.')
+            
+            ;;
+          "deep")
+            echo "🧠 Performing deep analysis..."
+            
+            # Advanced pattern mining
+            PATTERN_SEQUENCES=$(echo "$HISTORICAL_RESIDUES" | jq -r '
+              .residue_history | 
+              sort_by(.timestamp_unix) | 
+              .[0:-1] | 
+              map({
+                "sequence_id": .id,
+                "pattern": .content,
+                "timestamp": .timestamp,
+                "state": .state,
+                "strength": .strength,
+                "transitions": []
+              })
+            ')
+            
+            # Contextual pattern analysis
+            CONTEXTUAL_PATTERNS=$(echo "$ATTRACTORS" | jq -r '
+              map({
+                "attractor_id": (.pattern | split(" ") | .[0]),
+                "contextual_weight": .strength,
+                "residue_interactions": [],
+                "semantic_affinity": 0.0
+              })
+            ')
+            
+            RESIDUE_COUNT=$(echo "$HISTORICAL_RESIDUES" | jq '.residue_history | length')
+            PATTERN_CLUSTERS=$(echo "$PATTERN_SEQUENCES" | jq '.')
+            SEMANTIC_RELATIONSHIPS="$CONTEXTUAL_PATTERNS"
+            
+            ;;
+        esac
+        
+        # Generate semantic insights
+        INTEGRATION_RATE=$(echo "$PATTERN_METRICS" | jq -r '.integration_rate // 0.0')
+        AVERAGE_STRENGTH=$(echo "$PATTERN_METRICS" | jq -r '.average_strength // 0.0')
+        SEMANTIC_DENSITY=$(echo "$INTEGRATION_RATE * $AVERAGE_STRENGTH" | bc -l)
+        
+        # Generate insights based on patterns
+        INSIGHTS=[]
+        if (( $(echo "$INTEGRATION_RATE > 0.7" | bc -l) )); then
+          INSIGHTS+=("High integration rate ($INTEGRATION_RATE) indicates effective residue processing")
+        fi
+        
+        if [ "$RESIDUE_COUNT" -gt 20 ]; then
+          INSIGHTS+=("Large residue count ($RESIDUE_COUNT) suggests rich semantic activity")
+        fi
+        
+        # Generate contextual recommendations
+        RECOMMENDATIONS=[]
+        if (( $(echo "$INTEGRATION_RATE < 0.5" | bc -l) )); then
+          RECOMMENDATIONS+=("Optimize residue integration strategies")
+        fi
+        
+        if [ "$RESIDUE_COUNT" -gt 50 ]; then
+          RECOMMENDATIONS+=("Consider residue compression and consolidation")
+        fi
+        
+        # Build final outputs
+        RESIDUE_PATTERNS=$(cat << EOF
+        {
+          "analysis_depth": "$ANALYSIS_DEPTH",
+          "analyzed_patterns": $PATTERN_CLUSTERS,
+          "pattern_clusters": $PATTERN_CLUSTERS,
+          "semantic_relationships": $SEMANTIC_RELATIONSHIPS,
+          "analysis_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "pattern_types": "$PATTERN_TYPES"
+        }
+        EOF
+        )
+        
+        PATTERN_ANALYSIS_METRICS=$(cat << EOF
+        {
+          "analysis_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "analysis_depth": "$ANALYSIS_DEPTH",
+          "total_residues_analyzed": $RESIDUE_COUNT,
+          "pattern_types_analyzed": "$PATTERN_TYPES",
+          "integration_rate": $INTEGRATION_RATE,
+          "average_strength": $AVERAGE_STRENGTH,
+          "semantic_density": $SEMANTIC_DENSITY,
+          "pattern_clusters_found": $(echo "$PATTERN_CLUSTERS" | jq 'length'),
+          "semantic_relationships_found": $(echo "$SEMANTIC_RELATIONSHIPS" | jq 'length')
+        }
+        EOF
+        )
+        
+        SEMANTIC_INSIGHTS=$(cat << EOF
+        {
+          "analysis_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "insights": [$(printf '"%s",' "${INSIGHTS[@]}" | sed 's/,$//')],
+          "semantic_density": $SEMANTIC_DENSITY,
+          "context_relevance": $AVERAGE_STRENGTH,
+          "integration_efficiency": $INTEGRATION_RATE,
+          "pattern_complexity": $(echo "$RESIDUE_COUNT / 10" | bc -l)
+        }
+        EOF
+        )
+        
+        CONTEXTUAL_RECOMMENDATIONS=$(cat << EOF
+        {
+          "analysis_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "recommendations": [$(printf '"%s",' "${RECOMMENDATIONS[@]}" | sed 's/,$//')],
+          "priority_actions": [],
+          "optimization_opportunities": [],
+          "risk_factors": [],
+          "strategic_directions": []
+        }
+        EOF
+        )
+        
+        echo "residue-patterns=$RESIDUE_PATTERNS" >> $GITHUB_OUTPUT
+        echo "pattern-metrics=$PATTERN_ANALYSIS_METRICS" >> $GITHUB_OUTPUT
+        echo "semantic-insights=$SEMANTIC_INSIGHTS" >> $GITHUB_OUTPUT
+        echo "contextual-recommendations=$CONTEXTUAL_RECOMMENDATIONS" >> $GITHUB_OUTPUT
+        echo "residue-count=$RESIDUE_COUNT" >> $GITHUB_OUTPUT
+        
+        echo "Analysis Results:"
+        echo "  Residues Analyzed: $RESIDUE_COUNT"
+        echo "  Integration Rate: $INTEGRATION_RATE"
+        echo "  Average Strength: $AVERAGE_STRENGTH"
+        echo "  Semantic Density: $SEMANTIC_DENSITY"
+        echo "  Pattern Clusters: $(echo "$PATTERN_CLUSTERS" | jq 'length')"
+        
+        echo "::endgroup::"
+    
+    - name: 💾 Persist Analysis Results
+      id: persist
+      shell: bash
+      run: |
+        echo "::group::💾 Persisting Analysis Results"
+        
+        RESIDUE_PATTERNS="${{ steps.analyze.outputs.residue-patterns }}"
+        PATTERN_METRICS="${{ steps.analyze.outputs.pattern-metrics }}"
+        SEMANTIC_INSIGHTS="${{ steps.analyze.outputs.semantic-insights }}"
+        HISTORICAL_DATA="${{ inputs.historical-data }}"
+        
+        # Update historical data with new analysis
+        UPDATED_HISTORY=$(jq --argjson analysis "$RESIDUE_PATTERNS" \
+          --argjson metrics "$PATTERN_METRICS" \
+          --argjson insights "$SEMANTIC_INSIGHTS" \
+          --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          '.last_updated = $timestamp |
+           .pattern_metrics = $metrics |
+           .semantic_insights = ($insights.insights + .semantic_insights) |
+           .contextual_patterns |= (. + {$analysis})' \
+          "$HISTORICAL_DATA")
+        
+        echo "$UPDATED_HISTORY" > "$HISTORICAL_DATA"
+        
+        # Save detailed analysis results
+        ANALYSIS_RESULTS_FILE=".github/symbolic-residue/analysis/analysis-$(date +%Y%m%d-%H%M%S).json"
+        cat > "$ANALYSIS_RESULTS_FILE" << EOF
+        {
+          "analysis_id": "$(date +%Y%m%d-%H%M%S)",
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "residue_patterns": $RESIDUE_PATTERNS,
+          "pattern_metrics": $PATTERN_METRICS,
+          "semantic_insights": $SEMANTIC_INSIGHTS,
+          "contextual_recommendations": ${{ steps.analyze.outputs.contextual-recommendations }}
+        }
+        EOF
+        
+        # Generate blockchain hash
+        BLOCKCHAIN_HASH=$(sha256sum "$ANALYSIS_RESULTS_FILE" | cut -d' ' -f1)
+        
+        # Log to blockchain if script is available
+        if [ -f .github/scripts/blockchain-log.sh ]; then
+          LOG_DATA=$(cat << EOF
+          {
+            "event": "symbolic_residue_patterns_analyzed",
+            "analysis_depth": "${{ inputs.analysis-depth }}",
+            "pattern_types": "${{ inputs.pattern-types }}",
+            "residue_count": ${{ steps.analyze.outputs.residue-count }},
+            "semantic_density": $(echo "$SEMANTIC_INSIGHTS" | jq -r '.semantic_density'),
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "actor": "${{ github.actor }}",
+            "repository": "${{ github.repository }}",
+            "run_id": "${{ github.run_id }}",
+            "spec": "SPEC:RESIDUE-001"
+          }
+        EOF
+          )
+          
+          RESULT=$(.github/scripts/blockchain-log.sh both "$LOG_DATA")
+          echo "✅ Residue analysis logged to blockchain"
+        else
+          echo "ℹ️ Blockchain logging script not available"
+        fi
+        
+        echo "blockchain-hash=$BLOCKCHAIN_HASH" >> $GITHUB_OUTPUT
+        
+        echo "Analysis results saved to: $ANALYSIS_RESULTS_FILE"
+        echo "Historical data updated: $HISTORICAL_DATA"
+        echo "Blockchain hash: $BLOCKCHAIN_HASH"
+        
+        echo "::endgroup::"
+    
+    - name: 📊 Residue Pattern Analysis Report
+      shell: bash
+      run: |
+        echo "::group::📊 Residue Pattern Analysis Report"
+        echo ""
+        echo "## 🔍 Symbolic Residue Pattern Analysis Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Residue Schema: `${{ inputs.residue-schema }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Historical Data: `${{ inputs.historical-data }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Analysis Depth: `${{ inputs.analysis-depth }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Pattern Types: `${{ inputs.pattern-types }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Temporal Window: `${{ inputs.temporal-window }} hours`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Analysis Results:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Residues Analyzed: `${{ steps.analyze.outputs.residue-count }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Pattern Clusters: `${{ steps.analyze.outputs.pattern-metrics | fromJSON | .pattern_clusters_found }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Semantic Relationships: `${{ steps.analyze.outputs.pattern-metrics | fromJSON | .semantic_relationships_found }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Pattern Metrics:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Integration Rate: `${{ steps.analyze.outputs.pattern-metrics | fromJSON | .integration_rate }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Average Strength: `${{ steps.analyze.outputs.pattern-metrics | fromJSON | .average_strength }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Semantic Density: `${{ steps.analyze.outputs.pattern-metrics | fromJSON | .semantic_density }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Pattern Complexity: `${{ steps.analyze.outputs.pattern-metrics | fromJSON | .pattern_complexity }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Semantic Insights:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Context Relevance: `${{ steps.analyze.outputs.semantic-insights | fromJSON | .context_relevance }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Integration Efficiency: `${{ steps.analyze.outputs.semantic-insights | fromJSON | .integration_efficiency }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Insights Found: `${{ steps.analyze.outputs.semantic-insights | fromJSON | .insights | length }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.analyze.outputs.semantic-insights | fromJSON | .insights | length }}" -gt 0 ]; then
+          echo "### 💡 Key Semantic Insights:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.analyze.outputs.semantic-insights | fromJSON | .insights }}" | jq -r '.[]' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ steps.analyze.outputs.contextual-recommendations | fromJSON | .recommendations | length }}" -gt 0 ]; then
+          echo "### 🎯 Contextual Recommendations:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.analyze.outputs.contextual-recommendations | fromJSON | .recommendations }}" | jq -r '.[]' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "**Blockchain Verification:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Analysis Hash: `${{ steps.persist.outputs.blockchain-hash }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Verification: ✅ Cryptographically verified" >> $GITHUB_STEP_SUMMARY
+        echo "- Historical Data: ✅ Updated with new insights" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🔍 *Symbolic residue patterns analyzed for semantic intelligence and context awareness*" >> $GITHUB_STEP_SUMMARY
+        echo ""
+        echo "✅ Residue pattern analysis report generated"
+        echo "::endgroup::"

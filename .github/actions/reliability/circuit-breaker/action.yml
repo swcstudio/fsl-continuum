@@ -1,0 +1,423 @@
+name: 'FSL Reliability - Circuit Breaker'
+description: 'Circuit breaker pattern implementation for preventing cascade failures'
+author: 'FSL Continuum Reliability Team'
+branding:
+  icon: 'activity'
+  color: 'red'
+
+inputs:
+  service-name:
+    description: 'Name of the service to protect'
+    required: true
+  operation:
+    description: 'Operation to perform (check, execute, reset)'
+    required: false
+    default: 'execute'
+    type: choice
+    options: ['check', 'execute', 'reset']
+  failure-threshold:
+    description: 'Number of failures before opening circuit'
+    required: false
+    default: '5'
+    type: string
+  recovery-timeout:
+    description: 'Recovery timeout in seconds'
+    required: false
+    default: '60'
+    type: string
+  half-open-max-calls:
+    description: 'Maximum calls in half-open state'
+    required: false
+    default: '3'
+    type: string
+  success-threshold:
+    description: 'Success count threshold for closing circuit'
+    required: false
+    default: '2'
+    type: string
+  command:
+    description: 'Command to execute (when operation=execute)'
+    required: false
+    type: string
+
+outputs:
+  circuit-state:
+    description: 'Current circuit state (closed, open, half-open)'
+    value: ${{ steps.circuit.outputs.circuit-state }}
+  is-available:
+    description: 'Whether the service is available'
+    value: ${{ steps.circuit.outputs.is-available }}
+  failure-count:
+    description: 'Current failure count'
+    value: ${{ steps.circuit.outputs.failure-count }}
+  last-failure-time:
+    description: 'Timestamp of last failure'
+    value: ${{ steps.circuit.outputs.last-failure-time }}
+  should-execute:
+    description: 'Whether the command should be executed'
+    value: ${{ steps.circuit.outputs.should-execute }}
+  execution-result:
+    description: 'Result of command execution'
+    value: ${{ steps.execute.outputs.execution-result }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🔄 Initialize Circuit Breaker
+      id: init
+      shell: bash
+      run: |
+        echo "::group::🔄 Initializing Circuit Breaker"
+        
+        SERVICE_NAME="${{ inputs.service-name }}"
+        OPERATION="${{ inputs.operation }}"
+        FAILURE_THRESHOLD="${{ inputs.failure-threshold }}"
+        RECOVERY_TIMEOUT="${{ inputs.recovery-timeout }}"
+        HALF_OPEN_MAX_CALLS="${{ inputs.half-open-max-calls }}"
+        SUCCESS_THRESHOLD="${{ inputs.success-threshold }}"
+        
+        echo "Service: $SERVICE_NAME"
+        echo "Operation: $OPERATION"
+        echo "Failure Threshold: $FAILURE_THRESHOLD"
+        echo "Recovery Timeout: ${RECOVERY_TIMEOUT}s"
+        echo "Half-Open Max Calls: $HALF_OPEN_MAX_CALLS"
+        echo "Success Threshold: $SUCCESS_THRESHOLD"
+        
+        # Create circuit breaker state directory
+        mkdir -p .github/reliability/circuit-breaker
+        
+        # Initialize circuit breaker state file
+        STATE_FILE=".github/reliability/circuit-breaker/${SERVICE_NAME}.json"
+        
+        if [ ! -f "$STATE_FILE" ]; then
+          echo "Creating new circuit breaker state for $SERVICE_NAME"
+          cat > "$STATE_FILE" << EOF
+        {
+          "service_name": "$SERVICE_NAME",
+          "state": "closed",
+          "failure_count": 0,
+          "last_failure_time": null,
+          "last_success_time": null,
+          "half_open_calls": 0,
+          "success_count": 0,
+          "failure_threshold": $FAILURE_THRESHOLD,
+          "recovery_timeout": $RECOVERY_TIMEOUT,
+          "half_open_max_calls": $HALF_OPEN_MAX_CALLS,
+          "success_threshold": $SUCCESS_THRESHOLD,
+          "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "updated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        }
+        EOF
+        else
+          # Update configuration if different
+          jq --arg threshold "$FAILURE_THRESHOLD" \
+             --arg timeout "$RECOVERY_TIMEOUT" \
+             --arg max_calls "$HALF_OPEN_MAX_CALLS" \
+             --arg success "$SUCCESS_THRESHOLD" \
+             '.failure_threshold = ($threshold | tonumber) |
+              .recovery_timeout = ($timeout | tonumber) |
+              .half_open_max_calls = ($max_calls | tonumber) |
+              .success_threshold = ($success | tonumber)' \
+             "$STATE_FILE" > "$STATE_FILE.tmp"
+          mv "$STATE_FILE.tmp" "$STATE_FILE"
+        fi
+        
+        echo "state-file=$STATE_FILE" >> $GITHUB_OUTPUT
+        echo "::endgroup::"
+    
+    - name: 🔍 Check Circuit State
+      id: check
+      shell: bash
+      run: |
+        echo "::group::🔍 Checking Circuit State"
+        
+        SERVICE_NAME="${{ inputs.service-name }}"
+        STATE_FILE="${{ steps.init.outputs.state-file }}"
+        
+        # Read current state
+        CURRENT_STATE=$(jq -r '.state' "$STATE_FILE")
+        FAILURE_COUNT=$(jq -r '.failure_count' "$STATE_FILE")
+        LAST_FAILURE_TIME=$(jq -r '.last_failure_time' "$STATE_FILE")
+        HALF_OPEN_CALLS=$(jq -r '.half_open_calls' "$STATE_FILE")
+        SUCCESS_COUNT=$(jq -r '.success_count' "$STATE_FILE")
+        RECOVERY_TIMEOUT=$(jq -r '.recovery_timeout' "$STATE_FILE")
+        
+        echo "Current State: $CURRENT_STATE"
+        echo "Failure Count: $FAILURE_COUNT"
+        echo "Last Failure: $LAST_FAILURE_TIME"
+        echo "Half-Open Calls: $HALF_OPEN_CALLS"
+        echo "Success Count: $SUCCESS_COUNT"
+        
+        # Determine if service is available
+        IS_AVAILABLE="false"
+        NEXT_STATE="$CURRENT_STATE"
+        
+        CURRENT_TIME=$(date -u +%s)
+        
+        case "$CURRENT_STATE" in
+          "closed")
+            # Service is available in closed state
+            IS_AVAILABLE="true"
+            ;;
+          "open")
+            # Check if recovery timeout has passed
+            if [ -n "$LAST_FAILURE_TIME" ]; then
+              LAST_FAILURE_EPOCH=$(date -d "$LAST_FAILURE_TIME" +%s 2>/dev/null || echo "0")
+              RECOVERY_EPOCH=$((LAST_FAILURE_EPOCH + RECOVERY_TIMEOUT))
+              
+              if [ "$CURRENT_TIME" -gt "$RECOVERY_EPOCH" ]; then
+                # Transition to half-open
+                NEXT_STATE="half-open"
+                IS_AVAILABLE="true"
+                HALF_OPEN_CALLS=0
+                SUCCESS_COUNT=0
+                
+                echo "🔄 Transitioning from OPEN to HALF-OPEN"
+              fi
+            fi
+            ;;
+          "half-open")
+            # Allow limited calls in half-open state
+            if [ "$HALF_OPEN_CALLS" -lt "${{ inputs.half-open-max-calls }}" ]; then
+              IS_AVAILABLE="true"
+            else
+              # Too many calls, go back to open
+              NEXT_STATE="open"
+              FAILURE_COUNT=$(jq -r '.failure_threshold' "$STATE_FILE")
+              
+              echo "🔄 Transitioning from HALF-OPEN to OPEN (too many calls)"
+            fi
+            ;;
+        esac
+        
+        # Update state if changed
+        if [ "$NEXT_STATE" != "$CURRENT_STATE" ]; then
+          jq --arg state "$NEXT_STATE" \
+             --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             '.state = $state |
+              .updated_at = $timestamp |
+              .half_open_calls = ($state == "half_open" ? .half_open_calls : 0) |
+              .success_count = ($state == "half-open" ? .success_count : 0)' \
+             "$STATE_FILE" > "$STATE_FILE.tmp"
+          mv "$STATE_FILE.tmp" "$STATE_FILE"
+        fi
+        
+        echo "circuit-state=$NEXT_STATE" >> $GITHUB_OUTPUT
+        echo "is-available=$IS_AVAILABLE" >> $GITHUB_OUTPUT
+        echo "failure-count=$FAILURE_COUNT" >> $GITHUB_OUTPUT
+        echo "last-failure-time=$LAST_FAILURE_TIME" >> $GITHUB_OUTPUT
+        echo "should-execute=$IS_AVAILABLE" >> $GITHUB_OUTPUT
+        
+        echo "✅ Circuit state checked"
+        echo "State: $NEXT_STATE"
+        echo "Available: $IS_AVAILABLE"
+        echo "::endgroup::"
+    
+    - name: ⚡ Execute Command
+      id: execute
+      if: inputs.operation == 'execute' && steps.check.outputs.should-execute == 'true'
+      shell: bash
+      run: |
+        echo "::group::⚡ Executing Command with Circuit Breaker Protection"
+        
+        SERVICE_NAME="${{ inputs.service-name }}"
+        COMMAND="${{ inputs.command }}"
+        STATE_FILE="${{ steps.init.outputs.state-file }}"
+        
+        echo "Executing: $COMMAND"
+        
+        # Increment half-open call counter if in half-open state
+        CURRENT_STATE=$(jq -r '.state' "$STATE_FILE")
+        if [ "$CURRENT_STATE" = "half-open" ]; then
+          jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             '.half_open_calls += 1 |
+              .updated_at = $timestamp' \
+             "$STATE_FILE" > "$STATE_FILE.tmp"
+          mv "$STATE_FILE.tmp" "$STATE_FILE"
+        fi
+        
+        # Execute command and capture result
+        EXECUTION_START=$(date -u +%s)
+        
+        if eval "$COMMAND"; then
+          # Success
+          EXECUTION_RESULT="success"
+          EXIT_CODE=0
+          echo "✅ Command executed successfully"
+        else
+          # Failure
+          EXECUTION_RESULT="failure"
+          EXIT_CODE=$?
+          echo "❌ Command execution failed with exit code: $EXIT_CODE"
+        fi
+        
+        EXECUTION_END=$(date -u +%s)
+        EXECUTION_DURATION=$((EXECUTION_END - EXECUTION_START))
+        
+        # Update circuit breaker state based on result
+        if [ "$EXECUTION_RESULT" = "success" ]; then
+          # Handle success
+          case "$CURRENT_STATE" in
+            "closed")
+              # Reset failure count on success
+              jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                 '.failure_count = 0 |
+                  .last_success_time = $timestamp |
+                  .updated_at = $timestamp' \
+                 "$STATE_FILE" > "$STATE_FILE.tmp"
+              ;;
+            "half-open")
+              # Increment success count
+              SUCCESS_COUNT=$(jq -r '.success_count + 1' "$STATE_FILE")
+              jq --arg count "$SUCCESS_COUNT" \
+                 --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                 '.success_count = ($count | tonumber) |
+                  .last_success_time = $timestamp |
+                  .updated_at = $timestamp' \
+                 "$STATE_FILE" > "$STATE_FILE.tmp"
+              
+              # Check if threshold reached to close circuit
+              SUCCESS_THRESHOLD=$(jq -r '.success_threshold' "$STATE_FILE")
+              if [ "$SUCCESS_COUNT" -ge "$SUCCESS_THRESHOLD" ]; then
+                jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                   '.state = "closed" |
+                    .failure_count = 0 |
+                    .half_open_calls = 0 |
+                    .success_count = 0 |
+                    .updated_at = $timestamp' \
+                   "$STATE_FILE.tmp"
+                echo "🔄 Circuit closed after $SUCCESS_COUNT successful calls"
+              fi
+              ;;
+          esac
+        else
+          # Handle failure
+          case "$CURRENT_STATE" in
+            "closed")
+              # Increment failure count
+              NEW_FAILURE_COUNT=$(jq -r '.failure_count + 1' "$STATE_FILE")
+              jq --arg count "$NEW_FAILURE_COUNT" \
+                 --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                 '.failure_count = ($count | tonumber) |
+                  .last_failure_time = $timestamp |
+                  .updated_at = $timestamp' \
+                 "$STATE_FILE" > "$STATE_FILE.tmp"
+              
+              # Check if threshold reached to open circuit
+              FAILURE_THRESHOLD=$(jq -r '.failure_threshold' "$STATE_FILE")
+              if [ "$NEW_FAILURE_COUNT" -ge "$FAILURE_THRESHOLD" ]; then
+                jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                   '.state = "open" |
+                    .updated_at = $timestamp' \
+                   "$STATE_FILE.tmp"
+                echo "🚨 Circuit opened after $NEW_FAILURE_COUNT failures"
+              fi
+              ;;
+            "half-open")
+              # Immediately open on failure in half-open state
+              jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                 '.state = "open" |
+                  .failure_count = .failure_threshold |
+                  .updated_at = $timestamp' \
+                 "$STATE_FILE.tmp"
+              echo "🚨 Circuit opened on failure in half-open state"
+              ;;
+          esac
+        fi
+        
+        mv "$STATE_FILE.tmp" "$STATE_FILE"
+        
+        echo "execution-result=$EXECUTION_RESULT" >> $GITHUB_OUTPUT
+        echo "execution-duration=$EXECUTION_DURATION" >> $GITHUB_OUTPUT
+        echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
+        
+        echo "::endgroup::"
+        
+        # Exit with original command's exit code
+        exit $EXIT_CODE
+    
+    - name: 🚫 Handle Circuit Open
+      if: inputs.operation == 'execute' && steps.check.outputs.should-execute == 'false'
+      shell: bash
+      run: |
+        echo "::group::🚫 Circuit Breaker Handling"
+        
+        SERVICE_NAME="${{ inputs.service-name }}"
+        CIRCUIT_STATE="${{ steps.check.outputs.circuit-state }}"
+        FAILURE_COUNT="${{ steps.check.outputs.failure-count }}"
+        LAST_FAILURE_TIME="${{ steps.check.outputs.last-failure-time }}"
+        
+        echo "🚨 Circuit Breaker is OPEN for service: $SERVICE_NAME"
+        echo "State: $CIRCUIT_STATE"
+        echo "Failure Count: $FAILURE_COUNT"
+        echo "Last Failure: $LAST_FAILURE_TIME"
+        
+        # Log the circuit open event
+        LOG_DATA=$(cat << EOF
+        {
+          "event": "circuit_breaker_open",
+          "service_name": "$SERVICE_NAME",
+          "circuit_state": "$CIRCUIT_STATE",
+          "failure_count": $FAILURE_COUNT,
+          "last_failure_time": "$LAST_FAILURE_TIME",
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "command": "${{ inputs.command }}",
+          "action": "blocked"
+        }
+        EOF
+        )
+        
+        # Log to reliability events
+        mkdir -p .github/reliability/events
+        echo "$LOG_DATA" >> ".github/reliability/events/circuit-breaker-$(date +%Y-%m-%d).json"
+        
+        echo ""
+        echo "⚠️ Execution blocked due to circuit breaker being open"
+        echo "💡 This prevents cascade failures and allows service recovery"
+        echo ""
+        
+        # Exit with failure to indicate blocked execution
+        exit 1
+        
+        echo "::endgroup::"
+    
+    - name: 📊 Circuit Breaker Report
+      shell: bash
+      run: |
+        echo "::group::📊 Circuit Breaker Report"
+        echo ""
+        echo "## 🔌 Circuit Breaker Status Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Service:** `${{ inputs.service-name }}`" >> $GITHUB_STEP_SUMMARY
+        echo "**Operation:** `${{ inputs.operation }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Status:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Circuit State: `${{ steps.check.outputs.circuit-state }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Is Available: `${{ steps.check.outputs.is-available }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Failure Count: `${{ steps.check.outputs.failure-count }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Last Failure: `${{ steps.check.outputs.last-failure-time }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ inputs.operation }}" = "execute" ]; then
+          echo "**Execution:**" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check.outputs.should-execute }}" = "true" ]; then
+            echo "- Status: ✅ Executed" >> $GITHUB_STEP_SUMMARY
+            echo "- Result: `${{ steps.execute.outputs.execution-result }}`" >> $GITHUB_STEP_SUMMARY
+            echo "- Duration: `${{ steps.execute.outputs.execution-duration }}`s" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Status: 🚫 Blocked" >> $GITHUB_STEP_SUMMARY
+            echo "- Reason: Circuit breaker is open" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Failure Threshold: `${{ inputs.failure-threshold }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Recovery Timeout: `${{ inputs.recovery-timeout }}s`" >> $GITHUB_STEP_SUMMARY
+        echo "- Half-Open Max Calls: `${{ inputs.half-open-max-calls }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Success Threshold: `${{ inputs.success-threshold }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🔌 *Circuit breaker protection preventing cascade failures*" >> $GITHUB_STEP_SUMMARY
+        echo ""
+        echo "✅ Circuit breaker report generated"
+        echo "::endgroup::"

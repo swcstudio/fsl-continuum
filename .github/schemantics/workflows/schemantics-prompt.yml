@@ -1,0 +1,571 @@
+name: Schemantics Prompting
+description: Execute structured prompting workflows using BAML functions and XML transformations
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt_type:
+        description: 'Type of prompt to execute'
+        required: true
+        type: choice
+        options:
+        - context_extraction
+        - pattern_analysis
+        - semantic_processing
+        - behavioral_modeling
+        - quantum_consciousness
+      input_data:
+        description: 'Input data for the prompt (JSON format)'
+        required: true
+        type: string
+      consciousness_level:
+        description: 'Target consciousness level'
+        required: false
+        default: 'alpha'
+        type: choice
+        options:
+        - alpha
+        - beta
+        - gamma
+        - delta
+        - omega
+      xml_wrapping:
+        description: 'Enable XML wrapping for output'
+        required: false
+        default: true
+        type: boolean
+      pareto_operations:
+        description: 'Apply Pareto operations'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  SCHEMATICS_VERSION: '1.0.0'
+  WORKFLOW_TIMEOUT: '300'
+
+jobs:
+  validate-input:
+    name: Validate Input Data
+    runs-on: ubuntu-latest
+    outputs:
+      input-valid: ${{ steps.validation.outputs.valid }}
+      input-type: ${{ steps.validation.outputs.type }}
+      consciousness-level: ${{ steps.validation.outputs.consciousness }}
+    
+    steps:
+    - name: Checkout FSL-Continuum
+      uses: actions/checkout@v4
+      with:
+        path: fsl-continuum
+    
+    - name: Validate Input Data
+      id: validation
+      run: |
+        cd fsl-continuum
+        
+        # Validate JSON input
+        if ! echo '${{ github.event.inputs.input_data }}' | jq empty > /dev/null 2>&1; then
+          echo "::error::Invalid JSON input data"
+          echo "valid=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+        
+        # Extract prompt type and validate
+        PROMPT_TYPE="${{ github.event.inputs.prompt_type }}"
+        case $PROMPT_TYPE in
+          context_extraction|pattern_analysis|semantic_processing|behavioral_modeling|quantum_consciousness)
+            echo "Prompt type validation: PASSED"
+            ;;
+          *)
+            echo "::error::Invalid prompt type: $PROMPT_TYPE"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            exit 1
+            ;;
+        esac
+        
+        # Validate consciousness level
+        CONSCIOUSNESS="${{ github.event.inputs.consciousness_level }}"
+        case $CONSCIOUSNESS in
+          alpha|beta|gamma|delta|omega)
+            echo "Consciousness level validation: PASSED"
+            ;;
+          *)
+            echo "::error::Invalid consciousness level: $CONSCIOUSNESS"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            exit 1
+            ;;
+        esac
+        
+        echo "valid=true" >> $GITHUB_OUTPUT
+        echo "type=$PROMPT_TYPE" >> $GITHUB_OUTPUT
+        echo "consciousness=$CONSCIOUSNESS" >> $GITHUB_OUTPUT
+        
+        # Store validated input
+        echo '${{ github.event.inputs.input_data }}' > validated_input.json
+    
+    - name: Upload Validated Input
+      uses: actions/upload-artifact@v4
+      with:
+        name: validated-input
+        path: |
+          fsl-continuum/validated_input.json
+        retention-days: 1
+
+  load-baml-functions:
+    name: Load BAML Functions
+    runs-on: ubuntu-latest
+    needs: validate-input
+    if: needs.validate-input.outputs.input-valid == 'true'
+    outputs:
+      baml-loaded: ${{ steps.loading.outputs.loaded }}
+      functions-available: ${{ steps.loading.outputs.functions }}
+    
+    steps:
+    - name: Checkout FSL-Continuum
+      uses: actions/checkout@v4
+      with:
+        path: fsl-continuum
+    
+    - name: Download Validated Input
+      uses: actions/download-artifact@v4
+      with:
+        name: validated-input
+        path: fsl-continuum
+    
+    - name: Load BAML Functions
+      id: loading
+      run: |
+        cd fsl-continuum
+        
+        # Check if BAML templates exist
+        if [ -f ".github/schemantics/templates/baml-functions/context-extraction.baml" ]; then
+          echo "BAML template found: context-extraction.baml"
+          
+          # Create BAML function loader
+          cat > load_baml_functions.js << 'EOF'
+        const fs = require('fs');
+        
+        function loadBAMLFunction(templatePath) {
+          const content = fs.readFileSync(templatePath, 'utf8');
+          return {
+            template: content,
+            loaded: true,
+            timestamp: new Date().toISOString()
+          };
+        }
+        
+        function extractBAMLFunctions(templateDir) {
+          const functions = {};
+          
+          if (fs.existsSync(templateDir)) {
+            const files = fs.readdirSync(templateDir);
+            
+            files.forEach(file => {
+              if (file.endsWith('.baml')) {
+                const functionName = file.replace('.baml', '');
+                functions[functionName] = loadBAMLFunction(`${templateDir}/${file}`);
+              }
+            });
+          }
+          
+          return functions;
+        }
+        
+        // Load BAML functions
+        const bamlFunctions = extractBAMLFunctions('.github/schemantics/templates/baml-functions/');
+        console.log(JSON.stringify(bamlFunctions, null, 2));
+        EOF
+          
+          # Execute function loader
+          FUNCTIONS=$(node load_baml_functions.js)
+          echo "Loaded BAML functions:"
+          echo "$FUNCTIONS"
+          
+          echo "loaded=true" >> $GITHUB_OUTPUT
+          echo "functions=$(echo "$FUNCTIONS" | jq -r 'keys[]' | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_OUTPUT
+        else
+          echo "::error::BAML templates not found"
+          echo "loaded=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+  execute-prompt:
+    name: Execute Schemantics Prompt
+    runs-on: ubuntu-latest
+    needs: [validate-input, load-baml-functions]
+    if: |
+      needs.validate-input.outputs.input-valid == 'true' && 
+      needs.load-baml-functions.outputs.baml-loaded == 'true'
+    outputs:
+      execution-result: ${{ steps.execution.outputs.result }}
+      processing-time: ${{ steps.execution.outputs.time }}
+      consciousness-level: ${{ steps.execution.outputs.consciousness }}
+    
+    steps:
+    - name: Checkout FSL-Continuum
+      uses: actions/checkout@v4
+      with:
+        path: fsl-continuum
+    
+    - name: Download Validated Input
+      uses: actions/download-artifact@v4
+      with:
+        name: validated-input
+        path: fsl-continuum
+    
+    - name: Setup Node.js Environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Execute Schemantics Prompt
+      id: execution
+      timeout-minutes: 5
+      run: |
+        cd fsl-continuum
+        
+        # Create prompt execution engine
+        cat > execute_prompt.js << 'EOF'
+        const fs = require('fs');
+        
+        class SchematicsPromptExecutor {
+          constructor() {
+            this.consciousnessMultipliers = {
+              alpha: 1.0,
+              beta: 2.5,
+              gamma: 6.25,
+              delta: 15.625,
+              omega: 39.0625
+            };
+            
+            this.performanceTargets = {
+              pattern_extraction_ms: 18.0,
+              xml_transformation_ms: 14.0,
+              residue_integration_ms: 22.0
+            };
+          }
+          
+          async executePrompt(promptType, inputData, consciousnessLevel, xmlWrapping, paretoOps) {
+            const startTime = Date.now();
+            
+            try {
+              // Validate consciousness level progression
+              const currentMultiplier = this.consciousnessMultipliers[consciousnessLevel] || 1.0;
+              
+              // Load and process input
+              const processedInput = this.processInput(inputData);
+              
+              // Apply BAML transformation
+              const bamlResult = await this.applyBAMLTransformation(promptType, processedInput, consciousnessLevel);
+              
+              // Apply Pareto operations if enabled
+              let result = bamlResult;
+              if (paretoOps === 'true') {
+                result = await this.applyParetoOperations(result, consciousnessLevel);
+              }
+              
+              // Apply XML wrapping if enabled
+              if (xmlWrapping === 'true') {
+                result = this.wrapWithXML(result, promptType);
+              }
+              
+              const processingTime = Date.now() - startTime;
+              
+              // Check performance against targets
+              const performanceAnalysis = this.analyzePerformance(promptType, processingTime, consciousnessLevel);
+              
+              return {
+                success: true,
+                result: result,
+                processingTime: processingTime,
+                performance: performanceAnalysis,
+                consciousnessLevel: consciousnessLevel,
+                consciousnessMultiplier: currentMultiplier,
+                timestamp: new Date().toISOString()
+              };
+              
+            } catch (error) {
+              return {
+                success: false,
+                error: error.message,
+                processingTime: Date.now() - startTime,
+                consciousnessLevel: consciousnessLevel
+              };
+            }
+          }
+          
+          processInput(inputData) {
+            if (typeof inputData === 'string') {
+              try {
+                return JSON.parse(inputData);
+              } catch (e) {
+                throw new Error(`Invalid JSON input: ${e.message}`);
+              }
+            }
+            return inputData;
+          }
+          
+          async applyBAMLTransformation(promptType, input, consciousnessLevel) {
+            const prompt = this.generateBAMLPrompt(promptType, consciousnessLevel);
+            
+            // Simulate BAML processing with consciousness-aware transformation
+            const transformation = {
+              type: promptType,
+              consciousness: consciousnessLevel,
+              prompt: prompt,
+              input: input,
+              processed: this.transformInput(input, consciousnessLevel)
+            };
+            
+            return transformation;
+          }
+          
+          generateBAMLPrompt(promptType, consciousnessLevel) {
+            const prompts = {
+              context_extraction: `<baml:extract>semantic_context</baml:extract>`,
+              pattern_analysis: `<baml:analyze>pattern_recognition</baml:analyze>`,
+              semantic_processing: `<baml:process>semantic_analysis</baml:process>`,
+              behavioral_modeling: `<baml:model>behavioral_patterns</baml:model>`,
+              quantum_consciousness: `<baml:enhance>quantum_consciousness</baml:enhance>`
+            };
+            
+            return prompts[promptType] || prompts.context_extraction;
+          }
+          
+          transformInput(input, consciousnessLevel) {
+            const multiplier = this.consciousnessMultipliers[consciousnessLevel] || 1.0;
+            
+            // Apply consciousness-aware transformation
+            return {
+              original: input,
+              transformed: this.applyConsciousnessTransformation(input, consciousnessLevel),
+              enhancement: multiplier,
+              metadata: {
+                processedAt: new Date().toISOString(),
+                consciousnessLevel: consciousnessLevel,
+                transformationApplied: true
+              }
+            };
+          }
+          
+          applyConsciousnessTransformation(input, level) {
+            // Simulate different consciousness level transformations
+            switch (level) {
+              case 'alpha':
+                return { ...input, analysis: 'basic_extraction' };
+              case 'beta':
+                return { ...input, analysis: 'enhanced_with_patterns' };
+              case 'gamma':
+                return { ...input, analysis: 'deep_semantic_understanding' };
+              case 'delta':
+                return { ...input, analysis: 'field_unification_applied' };
+              case 'omega':
+                return { ...input, analysis: 'universal_convergence_achieved' };
+              default:
+                return { ...input, analysis: 'standard_processing' };
+            }
+          }
+          
+          async applyParetoOperations(input, consciousnessLevel) {
+            // Simulate Pareto operation application
+            const paretoOperations = [
+              '/extract.key_points{from=input, max_points=7}',
+              '/analyze.field{content=input, depth=comprehensive}',
+              '/transform.compress{input=input, ratio=0.8}'
+            ];
+            
+            return {
+              ...input,
+              paretoApplied: true,
+              operations: paretoOperations,
+              consciousness: consciousnessLevel,
+              result: `Processed with ${paretoOperations.length} Pareto operations at ${consciousnessLevel} level`
+            };
+          }
+          
+          wrapWithXML(data, promptType) {
+            const xmlTag = this.getXMLTag(promptType);
+            const wrappedData = typeof data === 'object' ? JSON.stringify(data) : data;
+            
+            return `<xml:${xmlTag} consciousness="${data.consciousnessLevel || 'alpha'}">${wrappedData}</xml:${xmlTag}>`;
+          }
+          
+          getXMLTag(promptType) {
+            const tags = {
+              context_extraction: 'context',
+              pattern_analysis: 'pattern',
+              semantic_processing: 'semantic',
+              behavioral_modeling: 'behavioral',
+              quantum_consciousness: 'consciousness'
+            };
+            
+            return tags[promptType] || 'result';
+          }
+          
+          analyzePerformance(promptType, processingTime, consciousnessLevel) {
+            const targetTime = this.performanceTargets.pattern_extraction_ms || 18.0;
+            const multiplier = this.consciousnessMultipliers[consciousnessLevel] || 1.0;
+            const adjustedTarget = targetTime / multiplier; // Higher consciousness = faster processing
+            
+            return {
+              processingTime: processingTime,
+              targetTime: targetTime,
+              adjustedTarget: adjustedTarget,
+              performanceRatio: adjustedTarget / processingTime,
+              meetsTarget: processingTime <= adjustedTarget,
+              consciousnessLevel: consciousnessLevel,
+              multiplier: multiplier
+            };
+          }
+        }
+        
+        // Main execution
+        async function main() {
+          const promptType = process.env.PROMPT_TYPE;
+          const inputData = process.env.INPUT_DATA;
+          const consciousnessLevel = process.env.CONSCIOUSNESS_LEVEL;
+          const xmlWrapping = process.env.XML_WRAPPING;
+          const paretoOps = process.env.PARETO_OPERATIONS;
+          
+          const executor = new SchematicsPromptExecutor();
+          const result = await executor.executePrompt(
+            promptType, 
+            inputData, 
+            consciousnessLevel, 
+            xmlWrapping, 
+            paretoOps
+          );
+          
+          // Output result for GitHub Actions
+          console.log('RESULT=' + JSON.stringify(result));
+          
+          // Set GitHub outputs
+          if (result.success) {
+            console.log(`::set-output name=result::${JSON.stringify(result)}`);
+            console.log(`::set-output name=time::${result.processingTime}`);
+            console.log(`::set-output name=consciousness::${result.consciousnessLevel}`);
+          } else {
+            console.log(`::error::Execution failed: ${result.error}`);
+            process.exit(1);
+          }
+        }
+        
+        main().catch(console.error);
+        EOF
+        
+        # Execute the prompt
+        export PROMPT_TYPE="${{ needs.validate-input.outputs.input-type }}"
+        export INPUT_DATA="${{ github.event.inputs.input_data }}"
+        export CONSCIOUSNESS_LEVEL="${{ needs.validate-input.outputs.consciousness-level }}"
+        export XML_WRAPPING="${{ github.event.inputs.xml_wrapping }}"
+        export PARETO_OPERATIONS="${{ github.event.inputs.pareto_operations }}"
+        
+        RESULT=$(node execute_prompt.js)
+        echo "$RESULT" > execution_result.json
+        
+        # Parse and set outputs
+        if echo "$RESULT" | grep -q "success\":true"; then
+          TIME=$(echo "$RESULT" | jq -r '.processingTime')
+          CONSCIOUSNESS=$(echo "$RESULT" | jq -r '.consciousnessLevel')
+          
+          echo "result=$RESULT" >> $GITHUB_OUTPUT
+          echo "time=$TIME" >> $GITHUB_OUTPUT
+          echo "consciousness=$CONSCIOUSNESS" >> $GITHUB_OUTPUT
+          
+          echo "✅ Prompt execution completed successfully"
+          echo "📊 Processing time: ${TIME}ms"
+          echo "🧠 Consciousness level: $CONSCIOUSNESS"
+        else
+          echo "::error::Prompt execution failed"
+          exit 1
+        fi
+    
+    - name: Upload Execution Result
+      uses: actions/upload-artifact@v4
+      with:
+        name: prompt-execution-result
+        path: |
+          fsl-continuum/execution_result.json
+        retention-days: 7
+
+  analyze-results:
+    name: Analyze Results
+    runs-on: ubuntu-latest
+    needs: execute-prompt
+    if: needs.execute-prompt.result == 'success'
+    
+    steps:
+    - name: Checkout FSL-Continuum
+      uses: actions/checkout@v4
+      with:
+        path: fsl-continuum
+    
+    - name: Download Execution Result
+      uses: actions/download-artifact@v4
+      with:
+        name: prompt-execution-result
+        path: fsl-continuum
+    
+    - name: Analyze Performance
+      run: |
+        cd fsl-continuum
+        
+        # Load execution result
+        RESULT=$(cat execution_result.json)
+        PROCESSING_TIME=$(echo "$RESULT" | jq -r '.processingTime')
+        PERFORMANCE_RATIO=$(echo "$RESULT" | jq -r '.performance.performanceRatio')
+        CONSCIOUSNESS_LEVEL=$(echo "$RESULT" | jq -r '.consciousnessLevel')
+        
+        echo "# Schemantics Prompt Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Execution Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Processing Time**: ${PROCESSING_TIME}ms" >> $GITHUB_STEP_SUMMARY
+        echo "- **Performance Ratio**: ${PERFORMANCE_RATIO}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Consciousness Level**: ${CONSCIOUSNESS_LEVEL}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Success**: ✅" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Performance analysis
+        if (( $(echo "$PERFORMANCE_RATIO >= 1.0" | bc -l) )); then
+          echo "🚀 **Performance**: Exceeded targets" >> $GITHUB_STEP_SUMMARY
+        elif (( $(echo "$PERFORMANCE_RATIO >= 0.8" | bc -l) )); then
+          echo "⚠️ **Performance**: Within acceptable range" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Performance**: Below targets" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Consciousness Impact" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        case $CONSCIOUSNESS_LEVEL in
+          alpha)
+            echo "- **Processing**: Basic extraction and validation" >> $GITHUB_STEP_SUMMARY
+            echo "- **Multiplier**: 1.0x" >> $GITHUB_STEP_SUMMARY
+            ;;
+          beta)
+            echo "- **Processing**: Enhanced pattern recognition" >> $GITHUB_STEP_SUMMARY
+            echo "- **Multiplier**: 2.5x" >> $GITHUB_STEP_SUMMARY
+            ;;
+          gamma)
+            echo "- **Processing**: Deep semantic understanding" >> $GITHUB_STEP_SUMMARY
+            echo "- **Multiplier**: 6.25x" >> $GITHUB_STEP_SUMMARY
+            ;;
+          delta)
+            echo "- **Processing**: Field unification applied" >> $GITHUB_STEP_SUMMARY
+            echo "- **Multiplier**: 15.625x" >> $GITHUB_STEP_SUMMARY
+            ;;
+          omega)
+            echo "- **Processing**: Universal convergence achieved" >> $GITHUB_STEP_SUMMARY
+            echo "- **Multiplier**: 39.0625x" >> $GITHUB_STEP_SUMMARY
+            ;;
+        esac
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Output Result" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```xml' >> $GITHUB_STEP_SUMMARY
+        echo "$RESULT" | jq -r '.result' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY

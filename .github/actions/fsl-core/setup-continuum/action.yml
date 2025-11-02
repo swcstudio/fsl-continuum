@@ -1,0 +1,260 @@
+name: 'FSL Core - Setup Continuum'
+description: 'Initialize FSL Continuum state and environment'
+author: 'FSL Continuum Team'
+branding:
+  icon: 'activity'
+  color: 'blue'
+
+inputs:
+  flow-id:
+    description: 'Unique flow identifier'
+    required: false
+    type: string
+  spec-file:
+    description: 'Path to specification file'
+    required: false
+    type: string
+  environment:
+    description: 'Target environment (dev, staging, prod)'
+    required: false
+    default: 'dev'
+    type: string
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+    type: boolean
+
+outputs:
+  flow-id:
+    description: 'Generated or provided flow ID'
+    value: ${{ steps.setup.outputs.flow-id }}
+  state-file:
+    description: 'Path to state file'
+    value: ${{ steps.setup.outputs.state-file }}
+  context-loaded:
+    description: 'Whether context was loaded successfully'
+    value: ${{ steps.setup.outputs.context-loaded }}
+  blockchain-tx:
+    description: 'Blockchain transaction hash for state initialization'
+    value: ${{ steps.blockchain.outputs.tx-hash }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🌊 Initialize Continuum Environment
+      id: setup
+      shell: bash
+      run: |
+        echo "::group::🌊 FSL Continuum - Setup Environment"
+        echo "Setting up FSL Continuum v2.1"
+        echo "Environment: ${{ inputs.environment }}"
+        echo "Debug: ${{ inputs.debug }}"
+        
+        # Create state directory
+        STATE_DIR=".github/state"
+        mkdir -p "$STATE_DIR"
+        mkdir -p "$STATE_DIR/flows"
+        mkdir -p "$STATE_DIR/context"
+        mkdir -p "$STATE_DIR/cache"
+        
+        # Generate or use flow ID
+        if [ -n "${{ inputs.flow-id }}" ]; then
+          FLOW_ID="${{ inputs.flow-id }}"
+        else
+          FLOW_ID="fsl-$(date +%s)-$(openssl rand -hex 4)"
+        fi
+        
+        echo "Flow ID: $FLOW_ID"
+        echo "flow-id=$FLOW_ID" >> $GITHUB_OUTPUT
+        
+        # State file path
+        STATE_FILE="$STATE_DIR/continuum-state.json"
+        echo "state-file=$STATE_FILE" >> $GITHUB_OUTPUT
+        
+        # Initialize or load continuum state
+        if [ -f "$STATE_FILE" ]; then
+          echo "✅ Continuum state loaded"
+          echo "context-loaded=true" >> $GITHUB_OUTPUT
+          
+          # Display current state
+          if [ "${{ inputs.debug }}" = "true" ]; then
+            echo "Current state:"
+            jq '.' "$STATE_FILE" | head -20
+          fi
+        else
+          echo "🆕 Initializing new continuum state"
+          echo "context-loaded=false" >> $GITHUB_OUTPUT
+          
+          # Create initial state
+          cat > "$STATE_FILE" << 'EOF'
+        {
+          "version": "2.1.0",
+          "spec": "SPEC:000-EXPANDED",
+          "initialized_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "last_updated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "environment": "${{ inputs.environment }}",
+          "statistics": {
+            "total_continuum_runs": 0,
+            "successful_runs": 0,
+            "failed_runs": 0,
+            "features_shipped": 0,
+            "epics_created": 0,
+            "sub_issues_completed": 0,
+            "terminal_velocity_achieved": false
+          },
+          "active_flows": {},
+          "completed_flows": {},
+          "blockchain_audit": [],
+          "terminal_velocity_metrics": {
+            "context_switches_per_day": 0,
+            "deployment_frequency_per_day": 0,
+            "lead_time_hours": 0,
+            "time_to_recovery_minutes": 0,
+            "change_failure_rate": 0
+          },
+          "performance_metrics": {
+            "workflow_execution_times": {},
+            "resource_utilization": {},
+            "cache_hit_rates": {}
+          },
+          "security_metrics": {
+            "vulnerabilities_scanned": 0,
+            "security_issues_found": 0,
+            "compliance_checks_passed": 0
+          }
+        }
+        EOF
+        fi
+        
+        # Create flow-specific state
+        FLOW_STATE_FILE="$STATE_DIR/flows/$FLOW_ID.json"
+        if [ ! -f "$FLOW_STATE_FILE" ]; then
+          cat > "$FLOW_STATE_FILE" << EOF
+        {
+          "flow_id": "$FLOW_ID",
+          "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "environment": "${{ inputs.environment }}",
+          "status": "initializing",
+          "phases": {
+            "setup": {
+              "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "status": "in_progress"
+            }
+          },
+          "context": {},
+          "artifacts": [],
+          "blockchain_transactions": []
+        }
+        EOF
+        fi
+        
+        # Load spec file if provided
+        if [ -n "${{ inputs.spec-file }}" ] && [ -f "${{ inputs.spec-file }}" ]; then
+          echo "Loading spec file: ${{ inputs.spec-file }}"
+          cp "${{ inputs.spec-file }}" "$STATE_DIR/context/current-spec.json"
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 🔗 Initialize Blockchain Context
+      id: blockchain
+      shell: bash
+      run: |
+        echo "::group::🔗 Blockchain Context Initialization"
+        
+        # Check if blockchain logging is available
+        if [ -f ".github/scripts/blockchain-log.sh" ]; then
+          # Log continuum initialization to blockchain
+          LOG_DATA=$(cat << EOF
+          {
+            "event": "continuum_initialization",
+            "flow_id": "${{ steps.setup.outputs.flow-id }}",
+            "environment": "${{ inputs.environment }}",
+            "state_file": "${{ steps.setup.outputs.state-file }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "actor": "${{ github.actor }}",
+            "repository": "${{ github.repository }}",
+            "run_id": "${{ github.run_id }}",
+            "spec": "SPEC:000-EXPANDED"
+          }
+          EOF
+          )
+          
+          RESULT=$(.github/scripts/blockchain-log.sh both "$LOG_DATA" 2>/dev/null || echo '{"status":"error"}')
+          TX_HASH=$(echo "$RESULT" | jq -r '.polygon_tx // .icp_tx // "pending"' 2>/dev/null || echo "pending")
+          
+          echo "Blockchain TX: $TX_HASH"
+          echo "tx-hash=$TX_HASH" >> $GITHUB_OUTPUT
+          
+          # Update state with blockchain info
+          STATE_FILE="${{ steps.setup.outputs.state-file }}"
+          if [ -f "$STATE_FILE" ]; then
+            jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+               --arg tx_hash "$TX_HASH" \
+               --arg flow_id "${{ steps.setup.outputs.flow-id }}" \
+               '.last_updated = $timestamp | 
+                .blockchain_audit += [{
+                  "timestamp": $timestamp,
+                  "event": "continuum_initialization",
+                  "flow_id": $flow_id,
+                  "tx_hash": $tx_hash
+                }]' \
+               "$STATE_FILE" > "$STATE_FILE.tmp"
+            
+            mv "$STATE_FILE.tmp" "$STATE_FILE"
+          fi
+        else
+          echo "⚠️ Blockchain logging not available"
+          echo "tx-hash=pending" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 📊 Setup Performance Monitoring
+      shell: bash
+      run: |
+        echo "::group::📊 Performance Monitoring Setup"
+        
+        # Create performance monitoring directory
+        PERF_DIR=".github/monitoring/performance"
+        mkdir -p "$PERF_DIR"
+        
+        # Initialize performance tracking
+        PERF_FILE="$PERF_DIR/${{ steps.setup.outputs.flow-id }}-perf.json"
+        cat > "$PERF_FILE" << EOF
+        {
+          "flow_id": "${{ steps.setup.outputs.flow-id }}",
+          "environment": "${{ inputs.environment }}",
+          "setup_started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "phases": {},
+          "metrics": {
+            "setup_duration_seconds": 0,
+            "total_workflow_duration_seconds": 0,
+            "resource_usage": {
+              "cpu_percentage": 0,
+              "memory_mb": 0,
+              "disk_io_mb": 0
+            }
+          }
+        }
+        EOF
+        
+        echo "Performance file created: $PERF_FILE"
+        echo "::endgroup::"
+    
+    - name: ✅ Setup Complete
+      shell: bash
+      run: |
+        echo "::group::✅ Setup Complete"
+        echo ""
+        echo "🌊 FSL Continuum Setup Complete"
+        echo "================================="
+        echo "Flow ID: ${{ steps.setup.outputs.flow-id }}"
+        echo "Environment: ${{ inputs.environment }}"
+        echo "State File: ${{ steps.setup.outputs.state-file }}"
+        echo "Blockchain TX: ${{ steps.blockchain.outputs.tx-hash }}"
+        echo "Context Loaded: ${{ steps.setup.outputs.context-loaded }}"
+        echo ""
+        echo "🚀 Ready for FSL Continuum execution!"
+        echo "::endgroup::"

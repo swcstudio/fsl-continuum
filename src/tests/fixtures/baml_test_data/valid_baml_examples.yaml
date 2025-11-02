@@ -1,0 +1,403 @@
+# BAML Valid Test Examples
+
+name: "baml_valid_examples"
+description: "Valid BAML test examples for semantic language testing"
+category: "valid_data"
+data_type: "baml"
+
+fixtures:
+  - name: "basic_baml_structure"
+    description: "Basic BAML semantic structure with single boundary"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "Basic BAML semantic example for testing"
+      boundaries:
+        - name: "test_boundary"
+          type: "data"
+          ai_enhanced: true
+          constraints:
+            - type: "data_validation"
+              operator: "contains"
+              value: "semantic_metadata"
+              ai_enforced: true
+          metadata:
+            ai_monitored: true
+            context_aware: true
+    expected:
+      success: true
+      boundaries_count: 1
+      has_boundaries: true
+      has_constraints: true
+      has_metadata: true
+      validation_result:
+        structure_valid: true
+        schema_compliant: true
+        semantic_valid: true
+    validation_rules:
+      structure_validation: true
+      schema_validation: true
+      semantic_validation: true
+    performance_thresholds:
+      max_execution_time: 0.1
+      max_memory_usage: 10
+
+  - name: "complex_baml_structure"
+    description: "Complex BAML semantic structure with multiple boundaries, connections, and constraints"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "Complex BAML semantic example for testing"
+      boundaries:
+        - name: "data_boundary"
+          type: "data"
+          ai_enhanced: true
+          constraints:
+            - type: "data_validation"
+              operator: "contains"
+              value: "semantic_metadata"
+              ai_enforced: true
+            - type: "format_validation"
+              operator: "="
+              value: "baml_format"
+              ai_enforced: true
+          metadata:
+            ai_monitored: true
+            context_aware: true
+            learning_enabled: true
+        - name: "process_boundary"
+          type: "process"
+          ai_enhanced: true
+          constraints:
+            - type: "process_validation"
+              operator: ">"
+              value: "min_process_time"
+              ai_enforced: true
+            - type: "resource_validation"
+              operator: "<="
+              value: "max_resource_usage"
+              ai_enforced: true
+          metadata:
+            ai_monitored: true
+            context_aware: true
+            learning_enabled: true
+        - name: "system_boundary"
+          type: "system"
+          ai_enhanced: true
+          constraints:
+            - type: "system_stability"
+              operator: ">="
+              value: "min_stability_score"
+              ai_enforced: true
+            - type: "system_performance"
+              operator: ">"
+              value: "min_performance_score"
+              ai_enforced: true
+          metadata:
+            ai_monitored: true
+            context_aware: true
+            learning_enabled: true
+      connections:
+        - source: "data_boundary"
+          target: "process_boundary"
+          type: "data_flow"
+          direction: "unidirectional"
+          ai_enhanced: true
+          context:
+            flow_type: "semantic_data_flow"
+            ai_optimized: true
+            context_aware: true
+        - source: "process_boundary"
+          target: "system_boundary"
+          type: "control_flow"
+          direction: "bidirectional"
+          ai_enhanced: true
+          context:
+            flow_type: "semantic_control_flow"
+            ai_optimized: true
+            context_aware: true
+        - source: "data_boundary"
+          target: "system_boundary"
+          type: "semantic_link"
+          direction: "multi_directional"
+          ai_enhanced: true
+          context:
+            flow_type: "semantic_system_link"
+            ai_optimized: true
+            context_aware: true
+      constraints:
+        - name: "semantic_boundary_constraint"
+          type: "boundary"
+          scope: ["data_boundary", "process_boundary", "system_boundary"]
+          conditions:
+            - variable: "boundary.ai_enhanced"
+              operator: "="
+              value: true
+              logical_operator: "AND"
+            - variable: "boundary.metadata.ai_monitored"
+              operator: "="
+              value: true
+              logical_operator: "AND"
+          ai_monitored: true
+          auto_enforced: true
+        - name: "semantic_connection_constraint"
+          type: "connection"
+          scope: ["data_flow", "control_flow", "semantic_link"]
+          conditions:
+            - variable: "connection.ai_enhanced"
+              operator: "="
+              value: true
+              logical_operator: "AND"
+            - variable: "connection.context.ai_optimized"
+              operator: "="
+              value: true
+              logical_operator: "AND"
+          ai_monitored: true
+          auto_enforced: true
+        - name: "semantic_system_constraint"
+          type: "system"
+          scope: ["ai_enhancement", "context_awareness"]
+          conditions:
+            - variable: "system.ai_integration"
+              operator: "="
+              value: true
+              logical_operator: "AND"
+            - variable: "system.context_preservation"
+              operator: "="
+              value: true
+              logical_operator: "AND"
+          ai_monitored: true
+          auto_enforced: true
+      ai_integration:
+        semantic_analysis: true
+        context_awareness: true
+        optimization: true
+        learning: true
+        prediction: true
+        ai_models:
+          semantic_analyzer: "transformer-based"
+          boundary_detector: "neural-network"
+          constraint_validator: "rule-based-ai"
+          connection_optimizer: "genetic-algorithm"
+        ai_features:
+          boundary_pattern_recognition: true
+          connection_flow_optimization: true
+          constraint_adaptive_learning: true
+          context_aware_validation: true
+        ai_learning:
+          federated_learning: true
+          continuous_learning: true
+          adaptation_learning: true
+          pattern_learning: true
+      fsl_continuum_integration:
+        bridge_enabled: true
+        state_management: true
+        context_preservation: true
+        performance_monitoring: true
+        integration_settings:
+          neural_field_integration: true
+          consciousness_routing: true
+          performance_metrics: true
+          context_intelligence: true
+        data_connections:
+          baml_to_neural_field: true
+          boundaries_to_consciousness: true
+          constraints_to_performance: true
+          connections_to_context: true
+        ai_integration:
+          ai_bridge_enabled: true
+          ai_learning_integration: true
+          ai_optimization_integration: true
+          ai_prediction_integration: true
+    expected:
+      success: true
+      boundaries_count: 3
+      connections_count: 3
+      constraints_count: 3
+      has_complex_structure: true
+      has_ai_integration: true
+      has_fsl_continuum_integration: true
+      validation_result:
+        structure_valid: true
+        schema_compliant: true
+        semantic_valid: true
+        ai_integration_valid: true
+        fsl_continuum_integration_valid: true
+    validation_rules:
+      structure_validation: true
+      schema_validation: true
+      semantic_validation: true
+      ai_integration_validation: true
+      fsl_continuum_integration_validation: true
+    performance_thresholds:
+      max_execution_time: 0.5
+      max_memory_usage: 50
+
+  - name: "baml_with_xml_transformation"
+    description: "BAML semantic structure with XML transformation enabled"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML semantic example with XML transformation"
+      xml_transformation:
+        enabled: true
+        wrapper_tag: "baml-semantic-data"
+        schema_version: "1.0.0-baml-xml"
+        preserve_semantics: true
+        context_aware: true
+      boundaries:
+        - name: "xml_test_boundary"
+          type: "data"
+          ai_enhanced: true
+          xml_wrapped: true
+          constraints:
+            - type: "xml_validation"
+              operator: "valid_xml_structure"
+              value: true
+              xml_preserved: true
+          metadata:
+            xml_transformation_applied: true
+            xml_schema_version: "1.0.0-baml-xml"
+    expected:
+      success: true
+      boundaries_count: 1
+      has_xml_transformation: true
+      has_xml_wrapped_boundary: true
+      validation_result:
+        structure_valid: true
+        schema_compliant: true
+        semantic_valid: true
+        xml_transformation_valid: true
+        xml_schema_compliant: true
+    validation_rules:
+      structure_validation: true
+      schema_validation: true
+      semantic_validation: true
+      xml_transformation_validation: true
+      xml_schema_validation: true
+    performance_thresholds:
+      max_execution_time: 0.2
+      max_memory_usage: 15
+
+  - name: "baml_with_ai_integration"
+    description: "BAML semantic structure with AI integration enabled"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML semantic example with AI integration"
+      ai_integration:
+        semantic_analysis: true
+        context_awareness: true
+        optimization: true
+        learning: true
+        prediction: true
+        ai_models:
+          semantic_analyzer: "transformer-based"
+          boundary_detector: "neural-network"
+          constraint_validator: "rule-based-ai"
+          connection_optimizer: "genetic-algorithm"
+        ai_features:
+          boundary_pattern_recognition: true
+          connection_flow_optimization: true
+          constraint_adaptive_learning: true
+          context_aware_validation: true
+      boundaries:
+        - name: "ai_test_boundary"
+          type: "data"
+          ai_enhanced: true
+          ai_monitored: true
+          constraints:
+            - type: "ai_validation"
+              operator: "ai_enhanced_validation"
+              value: true
+              ai_monitored: true
+          metadata:
+            ai_integration: true
+            ai_features: ["semantic_analysis", "context_awareness", "optimization"]
+    expected:
+      success: true
+      boundaries_count: 1
+      has_ai_integration: true
+      has_ai_enhanced_boundary: true
+      validation_result:
+        structure_valid: true
+        schema_compliant: true
+        semantic_valid: true
+        ai_integration_valid: true
+        ai_features_valid: true
+    validation_rules:
+      structure_validation: true
+      schema_validation: true
+      semantic_validation: true
+      ai_integration_validation: true
+      ai_features_validation: true
+    performance_thresholds:
+      max_execution_time: 0.3
+      max_memory_usage: 20
+
+  - name: "baml_with_fsl_continuum_integration"
+    description: "BAML semantic structure with FSL Continuum integration enabled"
+    input:
+      version: "1.0.0-fsl-integration"
+      spec: "BAML-SEMANTIC-001"
+      description: "BAML semantic example with FSL Continuum integration"
+      fsl_continuum_integration:
+        bridge_enabled: true
+        state_management: true
+        context_preservation: true
+        performance_monitoring: true
+        integration_settings:
+          neural_field_integration: true
+          consciousness_routing: true
+          performance_metrics: true
+          context_intelligence: true
+        data_connections:
+          baml_to_neural_field: true
+          boundaries_to_consciousness: true
+          constraints_to_performance: true
+          connections_to_context: true
+        ai_integration:
+          ai_bridge_enabled: true
+          ai_learning_integration: true
+          ai_optimization_integration: true
+          ai_prediction_integration: true
+      boundaries:
+        - name: "fsl_test_boundary"
+          type: "data"
+          ai_enhanced: true
+          fsl_integrated: true
+          constraints:
+            - type: "fsl_validation"
+              operator: "fsl_integration_validation"
+              value: true
+              fsl_enforced: true
+          metadata:
+            fsl_integration: true
+            fsl_features: ["neural_field", "consciousness_routing", "context_intelligence"]
+    expected:
+      success: true
+      boundaries_count: 1
+      has_fsl_continuum_integration: true
+      has_fsl_integrated_boundary: true
+      validation_result:
+        structure_valid: true
+        schema_compliant: true
+        semantic_valid: true
+        fsl_continuum_integration_valid: true
+        fsl_features_valid: true
+    validation_rules:
+      structure_validation: true
+      schema_validation: true
+      semantic_validation: true
+      fsl_continuum_integration_validation: true
+      fsl_features_validation: true
+    performance_thresholds:
+      max_execution_time: 0.25
+      max_memory_usage: 18
+
+generation_rules:
+  boundary_types: ["data", "process", "system"]
+  constraint_types: ["validation", "security", "performance", "compliance"]
+  connection_types: ["data_flow", "control_flow", "semantic_link", "dependency"]
+  ai_features: ["semantic_analysis", "context_awareness", "optimization", "learning", "prediction"]
+  fsl_features: ["neural_field", "consciousness_routing", "context_intelligence", "performance_metrics"]

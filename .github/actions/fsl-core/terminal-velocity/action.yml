@@ -1,0 +1,362 @@
+name: 'FSL Core - Terminal Velocity Metrics'
+description: 'Calculate and track terminal velocity metrics for FSL Continuum'
+author: 'FSL Continuum Team'
+branding:
+  icon: 'zap'
+  color: 'purple'
+
+inputs:
+  flow-id:
+    description: 'Flow identifier'
+    required: true
+    type: string
+  phase:
+    description: 'Current phase name'
+    required: true
+    type: string
+  deployment-frequency:
+    description: 'Deployments per day'
+    required: false
+    default: '0'
+    type: string
+  lead-time:
+    description: 'Lead time in hours'
+    required: false
+    default: '0'
+    type: string
+  recovery-time:
+    description: 'Time to recovery in minutes'
+    required: false
+    default: '0'
+    type: string
+  context-switches:
+    description: 'Context switches per day'
+    required: false
+    default: '0'
+    type: string
+
+outputs:
+  terminal-velocity:
+    description: 'Terminal velocity score (0-100)'
+    value: ${{ steps.calculate.outputs.tv-score }}
+  velocity-trend:
+    description: 'Velocity trend (improving, stable, declining)'
+    value: ${{ steps.calculate.outputs.trend }}
+  metrics:
+    description: 'Complete terminal velocity metrics'
+    value: ${{ steps.calculate.outputs.metrics }}
+  recommendations:
+    description: 'Improvement recommendations'
+    value: ${{ steps.calculate.outputs.recommendations }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 📊 Calculate Terminal Velocity
+      id: calculate
+      shell: bash
+      run: |
+        echo "::group::📊 Terminal Velocity Calculation"
+        
+        FLOW_ID="${{ inputs.flow-id }}"
+        PHASE="${{ inputs.phase }}"
+        DEPLOY_FREQ="${{ inputs.deployment-frequency }}"
+        LEAD_TIME="${{ inputs.lead-time }}"
+        RECOVERY_TIME="${{ inputs.recovery-time }}"
+        CONTEXT_SWITCHES="${{ inputs.context-switches }}"
+        
+        STATE_FILE=".github/state/continuum-state.json"
+        FLOW_STATE_FILE=".github/state/flows/$FLOW_ID.json"
+        
+        echo "Flow ID: $FLOW_ID"
+        echo "Phase: $PHASE"
+        echo "Deploy Frequency: $DEPLOY_FREQ/day"
+        echo "Lead Time: $LEAD_TIME hours"
+        echo "Recovery Time: $RECOVERY_TIME minutes"
+        echo "Context Switches: $CONTEXT_SWITCHES/day"
+        
+        # Terminal Velocity Calculation
+        # Based on DORA metrics and Flow State optimization
+        
+        # 1. Deployment Frequency Score (0-25 points)
+        # >10/day = 25, 5-10/day = 20, 1-5/day = 15, <1/day = 10
+        DEPLOY_SCORE=10
+        if [ "$DEPLOY_FREQ" -gt 10 ]; then
+          DEPLOY_SCORE=25
+        elif [ "$DEPLOY_FREQ" -gt 5 ]; then
+          DEPLOY_SCORE=20
+        elif [ "$DEPLOY_FREQ" -gt 1 ]; then
+          DEPLOY_SCORE=15
+        fi
+        
+        # 2. Lead Time Score (0-25 points)
+        # <1 hour = 25, 1-6 hours = 20, 6-24 hours = 15, >24 hours = 10
+        LEAD_SCORE=10
+        if [ "$LEAD_TIME" -lt 1 ]; then
+          LEAD_SCORE=25
+        elif [ "$LEAD_TIME" -lt 6 ]; then
+          LEAD_SCORE=20
+        elif [ "$LEAD_TIME" -lt 24 ]; then
+          LEAD_SCORE=15
+        fi
+        
+        # 3. Recovery Time Score (0-25 points)
+        # <15 min = 25, 15-60 min = 20, 1-4 hours = 15, >4 hours = 10
+        RECOVERY_SCORE=10
+        if [ "$RECOVERY_TIME" -lt 15 ]; then
+          RECOVERY_SCORE=25
+        elif [ "$RECOVERY_TIME" -lt 60 ]; then
+          RECOVERY_SCORE=20
+        elif [ "$RECOVERY_TIME" -lt 240 ]; then
+          RECOVERY_SCORE=15
+        fi
+        
+        # 4. Context Switch Score (0-25 points)
+        # 0/day = 25, 1-5/day = 20, 6-10/day = 15, >10/day = 10
+        CONTEXT_SCORE=10
+        if [ "$CONTEXT_SWITCHES" -eq 0 ]; then
+          CONTEXT_SCORE=25
+        elif [ "$CONTEXT_SWITCHES" -lt 6 ]; then
+          CONTEXT_SCORE=20
+        elif [ "$CONTEXT_SWITCHES" -lt 11 ]; then
+          CONTEXT_SCORE=15
+        fi
+        
+        # Calculate Total Terminal Velocity Score (0-100)
+        TV_SCORE=$((DEPLOY_SCORE + LEAD_SCORE + RECOVERY_SCORE + CONTEXT_SCORE))
+        
+        echo "Scores: Deploy=$DEPLOY_SCORE, Lead=$LEAD_SCORE, Recovery=$RECOVERY_SCORE, Context=$CONTEXT_SCORE"
+        echo "Terminal Velocity Score: $TV_SCORE/100"
+        echo "tv-score=$TV_SCORE" >> $GITHUB_OUTPUT
+        
+        # Determine velocity trend
+        if [ -f "$STATE_FILE" ]; then
+          PREVIOUS_TV=$(jq -r '.terminal_velocity_metrics.score // 0' "$STATE_FILE" 2>/dev/null || echo "0")
+          
+          if [ "$TV_SCORE" -gt "$PREVIOUS_TV" ]; then
+            TREND="improving"
+          elif [ "$TV_SCORE" -eq "$PREVIOUS_TV" ]; then
+            TREND="stable"
+          else
+            TREND="declining"
+          fi
+        else
+          TREND="baseline"
+        fi
+        
+        echo "trend=$TREND" >> $GITHUB_OUTPUT
+        
+        # Generate recommendations
+        RECOMMENDATIONS=()
+        
+        if [ "$DEPLOY_SCORE" -lt 20 ]; then
+          RECOMMENDATIONS+=("🚀 Increase deployment frequency with automated releases")
+        fi
+        
+        if [ "$LEAD_SCORE" -lt 20 ]; then
+          RECOMMENDATIONS+=("⚡ Reduce lead time with streamlined approvals")
+        fi
+        
+        if [ "$RECOVERY_SCORE" -lt 20 ]; then
+          RECOMMENDATIONS+=("🛡️ Improve recovery time with better monitoring")
+        fi
+        
+        if [ "$CONTEXT_SCORE" -lt 25 ]; then
+          RECOMMENDATIONS+=("🌊 Reduce context switches with flow state optimization")
+        fi
+        
+        # Convert recommendations to JSON
+        RECOMMENDATIONS_JSON=$(printf '%s\n' "${RECOMMENDATIONS[@]}" | jq -R . | jq -s .)
+        echo "recommendations=$RECOMMENDATIONS_JSON" >> $GITHUB_OUTPUT
+        
+        # Create complete metrics JSON
+        METRICS=$(cat << EOF
+        {
+          "flow_id": "$FLOW_ID",
+          "phase": "$PHASE",
+          "calculated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "scores": {
+            "deployment_frequency": {
+              "value": "$DEPLOY_FREQ",
+              "score": "$DEPLOY_SCORE",
+              "unit": "deployments/day"
+            },
+            "lead_time": {
+              "value": "$LEAD_TIME",
+              "score": "$LEAD_SCORE",
+              "unit": "hours"
+            },
+            "recovery_time": {
+              "value": "$RECOVERY_TIME",
+              "score": "$RECOVERY_SCORE",
+              "unit": "minutes"
+            },
+            "context_switches": {
+              "value": "$CONTEXT_SWITCHES",
+              "score": "$CONTEXT_SCORE",
+              "unit": "switches/day"
+            }
+          },
+          "terminal_velocity": {
+            "score": "$TV_SCORE",
+            "trend": "$TREND",
+            "level": "$([ "$TV_SCORE" -ge 80 ] && echo "Terminal Velocity Achieved 🚀" || [ "$TV_SCORE" -ge 60 ] && echo "High Performance" || [ "$TV_SCORE" -ge 40 ] && echo "Moderate" || echo "Needs Improvement")"
+          },
+          "recommendations": $RECOMMENDATIONS_JSON
+        }
+        EOF
+        )
+        
+        echo "metrics=$METRICS" >> $GITHUB_OUTPUT
+        
+        # Update continuum state with TV metrics
+        if [ -f "$STATE_FILE" ]; then
+          jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             --arg tv_score "$TV_SCORE" \
+             --arg trend "$TREND" \
+             --arg deploy_freq "$DEPLOY_FREQ" \
+             --arg lead_time "$LEAD_TIME" \
+             --arg recovery_time "$RECOVERY_TIME" \
+             --arg context_switches "$CONTEXT_SWITCHES" \
+             '.terminal_velocity_metrics = {
+               "score": ($tv_score | tonumber),
+               "trend": $trend,
+               "calculated_at": $timestamp,
+               "deployment_frequency_per_day": ($deploy_freq | tonumber),
+               "lead_time_hours": ($lead_time | tonumber),
+               "time_to_recovery_minutes": ($recovery_time | tonumber),
+               "context_switches_per_day": ($context_switches | tonumber)
+             } |
+             .last_updated = $timestamp |
+             .statistics.terminal_velocity_achieved = ($tv_score | tonumber >= 80)' \
+             "$STATE_FILE" > "$STATE_FILE.tmp"
+          
+          mv "$STATE_FILE.tmp" "$STATE_FILE"
+          echo "✅ Continuum state updated with TV metrics"
+        fi
+        
+        # Update flow state
+        if [ -f "$FLOW_STATE_FILE" ]; then
+          jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             --arg tv_score "$TV_SCORE" \
+             --arg phase "$PHASE" \
+             '.terminal_velocity_score = ($tv_score | tonumber) |
+              .phases[$phase].terminal_velocity = {
+                "score": ($tv_score | tonumber),
+                "calculated_at": $timestamp
+              }' \
+             "$FLOW_STATE_FILE" > "$FLOW_STATE_FILE.tmp"
+          
+          mv "$FLOW_STATE_FILE.tmp" "$FLOW_STATE_FILE"
+          echo "✅ Flow state updated with TV metrics"
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 📈 Generate Terminal Velocity Report
+      shell: bash
+      run: |
+        echo "::group::📈 Terminal Velocity Report"
+        
+        TV_SCORE="${{ steps.calculate.outputs.tv-score }}"
+        TREND="${{ steps.calculate.outputs.trend }}"
+        METRICS="${{ steps.calculate.outputs.metrics }}"
+        
+        # Determine TV level
+        if [ "$TV_SCORE" -ge 80 ]; then
+          TV_LEVEL="🚀 Terminal Velocity Achieved"
+          TV_EMOJI="🚀"
+        elif [ "$TV_SCORE" -ge 60 ]; then
+          TV_LEVEL="⚡ High Performance"
+          TV_EMOJI="⚡"
+        elif [ "$TV_SCORE" -ge 40 ]; then
+          TV_LEVEL="📈 Moderate"
+          TV_EMOJI="📈"
+        else
+          TV_LEVEL="⚠️ Needs Improvement"
+          TV_EMOJI="⚠️"
+        fi
+        
+        echo ""
+        echo "🌊 Terminal Velocity Analysis Report"
+        echo "=================================="
+        echo ""
+        echo "$TV_EMOJI Terminal Velocity Score: $TV_SCORE/100"
+        echo "📊 Trend: $TREND"
+        echo "🎯 Level: $TV_LEVEL"
+        echo ""
+        
+        # Display detailed scores
+        echo "$METRICS" | jq -r '
+          "Deployment Frequency: " + (.scores.deployment_frequency.value + " " + .scores.deployment_frequency.unit + " (Score: " + .scores.deployment_frequency.score + "/25)") + "\n" +
+          "Lead Time: " + (.scores.lead_time.value + " " + .scores.lead_time.unit + " (Score: " + .scores.lead_time.score + "/25)") + "\n" +
+          "Recovery Time: " + (.scores.recovery_time.value + " " + .scores.recovery_time.unit + " (Score: " + .scores.recovery_time.score + "/25)") + "\n" +
+          "Context Switches: " + (.scores.context_switches.value + " " + .scores.context_switches.unit + " (Score: " + .scores.context_switches.score + "/25)") + "\n"
+        '
+        
+        echo ""
+        echo "💡 Recommendations:"
+        echo "$METRICS" | jq -r '.recommendations[]' | sed 's/^/- /'
+        
+        echo ""
+        echo "::endgroup::"
+    
+    - name: 💾 Save Terminal Velocity Data
+      shell: bash
+      run: |
+        # Create TV data directory
+        TV_DIR=".github/monitoring/terminal-velocity"
+        mkdir -p "$TV_DIR"
+        
+        # Save TV history
+        TV_HISTORY_FILE="$TV_DIR/history.json"
+        if [ ! -f "$TV_HISTORY_FILE" ]; then
+          echo "[]" > "$TV_HISTORY_FILE"
+        fi
+        
+        # Add current TV data to history
+        echo "${{ steps.calculate.outputs.metrics }}" | jq \
+          --argjson history "$(cat "$TV_HISTORY_FILE")" \
+          '$history + [.]' \
+          > "$TV_HISTORY_FILE.tmp"
+        
+        mv "$TV_HISTORY_FILE.tmp" "$TV_HISTORY_FILE"
+        
+        # Create TV dashboard data
+        TV_DASHBOARD_FILE="$TV_DIR/dashboard.json"
+        echo "${{ steps.calculate.outputs.metrics }}" | jq \
+          --argjson history "$(cat "$TV_HISTORY_FILE")" \
+          '{
+            "current": .,
+            "history": $history,
+            "summary": {
+              "current_score": .terminal_velocity.score,
+              "trend": .terminal_velocity.trend,
+              "level": .terminal_velocity.level,
+              "recommendations_count": (.recommendations | length),
+              "last_updated": .calculated_at
+            }
+          }' \
+          > "$TV_DASHBOARD_FILE"
+        
+        echo "✅ Terminal Velocity data saved"
+        echo "History: $TV_HISTORY_FILE"
+        echo "Dashboard: $TV_DASHBOARD_FILE"
+    
+    - name: ✅ Terminal Velocity Analysis Complete
+      shell: bash
+      run: |
+        echo "::group::✅ Terminal Velocity Analysis Complete"
+        echo ""
+        echo "🌊 Terminal Velocity Analysis Complete"
+        echo "===================================="
+        echo ""
+        echo "📊 Score: ${{ steps.calculate.outputs.tv-score }}/100"
+        echo "📈 Trend: ${{ steps.calculate.outputs.trend }}"
+        echo ""
+        echo "💾 Data saved to:"
+        echo "   - History: .github/monitoring/terminal-velocity/history.json"
+        echo "   - Dashboard: .github/monitoring/terminal-velocity/dashboard.json"
+        echo ""
+        echo "🚀 Keep pushing for Terminal Velocity!"
+        echo "::endgroup::"

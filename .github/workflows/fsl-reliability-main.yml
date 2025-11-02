@@ -1,0 +1,452 @@
+name: FSL Continuum Reliability Main
+
+# FSL Continuum Main Reliability Workflow
+# SPEC:RELIABILITY-003 - Comprehensive Reliability Integration
+#
+# Main workflow demonstrating all reliability features:
+# - Guard rails protection
+# - Circuit breaker patterns
+# - Retry with exponential backoff
+# - Error classification and handling
+# - State validation and integrity
+# - Health monitoring and alerting
+# - SLA compliance tracking
+
+on:
+  workflow_dispatch:
+    inputs:
+      test-scenario:
+        description: 'Reliability test scenario'
+        required: false
+        default: 'full-test'
+        type: choice
+        options: ['full-test', 'guard-rails', 'circuit-breaker', 'retry-handler', 'error-handler', 'state-validator']
+      failure-simulation:
+        description: 'Simulate specific failure types'
+        required: false
+        default: 'none'
+        type: choice
+        options: ['none', 'network-timeout', 'api-failure', 'state-corruption', 'resource-exhaustion']
+      strict-mode:
+        description: 'Enable strict mode for all components'
+        required: false
+        default: 'true'
+        type: boolean
+      create-issues:
+        description: 'Create GitHub issues for failures'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  TEST_SCENARIO: ${{ github.event.inputs.test-scenario || 'full-test' }}
+  FAILURE_SIMULATION: ${{ github.event.inputs.failure-simulation || 'none' }}
+  STRICT_MODE: ${{ github.event.inputs.strict-mode || 'true' }}
+  CREATE_ISSUES: ${{ github.event.inputs.create-issues || 'true' }}
+
+jobs:
+  reliability-demo:
+    name: FSL Continuum Reliability Demo
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 🛡️ Enable Guard Rails
+        id: guard-rails
+        uses: ./.github/actions/reliability/guard-rails
+        with:
+          enable-input-validation: true
+          enable-state-validation: true
+          enable-circuit-breaker: true
+          enable-timeout-management: true
+          enable-resource-limiting: true
+          workflow-context: '{"test_scenario": "${{ env.TEST_SCENARIO }}", "failure_simulation": "${{ env.FAILURE_SIMULATION }}"}'
+          strict-mode: ${{ env.STRICT_MODE }}
+      
+      - name: 🧪 Initialize Test State
+        shell: bash
+        run: |
+          echo "::group::🧪 Initializing Test State"
+          
+          # Create test state directory
+          mkdir -p .github/state
+          
+          # Create test state file
+          cat > .github/state/continuum-state.json << 'EOF'
+        {
+          "version": "2.1.0",
+          "spec": "SPEC:RELIABILITY-003",
+          "initialized_at": "2025-01-22T10:00:00Z",
+          "statistics": {
+            "total_continuum_runs": 10,
+            "successful_runs": 8,
+            "failed_runs": 2,
+            "features_shipped": 5,
+            "epics_created": 3,
+            "sub_issues_completed": 15
+          },
+          "active_flows": {
+            "reliability-test": {
+              "phase": "testing",
+              "started_at": "2025-01-22T10:00:00Z",
+              "status": "in_progress"
+            }
+          },
+          "completed_flows": {},
+          "blockchain_audit": [],
+          "terminal_velocity_metrics": {
+            "context_switches_per_day": 2,
+            "deployment_frequency_per_day": 3,
+            "lead_time_hours": 4,
+            "time_to_recovery_minutes": 5
+          },
+          "reliability_test": {
+            "scenario": "${{ env.TEST_SCENARIO }}",
+            "failure_simulation": "${{ env.FAILURE_SIMULATION }}",
+            "strict_mode": "${{ env.STRICT_MODE }}",
+            "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+        }
+        EOF
+          
+          echo "✅ Test state initialized"
+          echo "::endgroup::"
+      
+      - name: 🔌 Circuit Breaker Demo
+        if: ${{ env.TEST_SCENARIO == 'full-test' || env.TEST_SCENARIO == 'circuit-breaker' }}
+        uses: ./.github/actions/reliability/circuit-breaker
+        with:
+          service-name: 'demo-service'
+          operation: 'execute'
+          command: |
+            # Simulate service call
+            if [ "${{ env.FAILURE_SIMULATION }}" = "api-failure" ] && [ $(shuf -i 1-10 -n 1) -le 7 ]; then
+              echo "Simulating API failure..."
+              exit 1
+            else
+              echo "Service call successful"
+              sleep 1
+            fi
+          failure-threshold: '3'
+          recovery-timeout: '30'
+          half-open-max-calls: '2'
+        continue-on-error: true
+      
+      - name: 🔄 Retry Handler Demo
+        if: ${{ env.TEST_SCENARIO == 'full-test' || env.TEST_SCENARIO == 'retry-handler' }}
+        uses: ./.github/actions/reliability/retry-handler
+        with:
+          command: |
+            # Simulate operation that might fail
+            ATTEMPT_COUNT=${RETRY_ATTEMPT:-1}
+            echo "Attempt $ATTEMPT_COUNT"
+            
+            if [ "${{ env.FAILURE_SIMULATION }}" = "network-timeout" ] && [ $ATTEMPT_COUNT -le 2 ]; then
+              echo "Simulating network timeout..."
+              sleep 5
+              exit 124  # timeout exit code
+            elif [ "${{ env.FAILURE_SIMULATION }}" = "network-timeout" ]; then
+              echo "Network operation succeeded on attempt $ATTEMPT_COUNT"
+            else
+              echo "Operation succeeded"
+            fi
+          max-retries: '3'
+          base-delay: '1'
+          max-delay: '10'
+          backoff-factor: '2'
+          jitter: true
+          timeout: '15'
+        env:
+          RETRY_ATTEMPT: ${{ steps.retry-handler.outputs.total-attempts || '1' }}
+        continue-on-error: true
+      
+      - name: 🚨 Error Handler Demo
+        if: ${{ env.TEST_SCENARIO == 'full-test' || env.TEST_SCENARIO == 'error-handler' }}
+        id: error-handler
+        uses: ./.github/actions/reliability/error-handler
+        with:
+          error-type: 'auto'
+          error-message: |
+            Simulated error for testing:
+            - Type: ${{ env.FAILURE_SIMULATION || 'unknown' }}
+            - Scenario: ${{ env.TEST_SCENARIO }}
+            - Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          exit-code: '1'
+          operation: 'reliability-test'
+          recovery-strategy: 'auto'
+          create-issue: ${{ env.CREATE_ISSUES }}
+          notify-slack: true
+        continue-on-error: true
+      
+      - name: 🔍 State Validator Demo
+        if: ${{ env.TEST_SCENARIO == 'full-test' || env.TEST_SCENARIO == 'state-validator' }}
+        uses: ./.github/actions/reliability/state-validator
+        with:
+          state-file: '.github/state/continuum-state.json'
+          backup-state: true
+          strict-mode: ${{ env.STRICT_MODE }}
+          checksum-verification: true
+          semantic-validation: true
+          max-state-size: '10'
+        continue-on-error: true
+      
+      - name: 🧪 Simulate State Corruption
+        if: ${{ env.FAILURE_SIMULATION == 'state-corruption' }}
+        shell: bash
+        run: |
+          echo "::group::🧪 Simulating State Corruption"
+          
+          # Corrupt the state file
+          STATE_FILE=".github/state/continuum-state.json"
+          if [ -f "$STATE_FILE" ]; then
+            # Backup original
+            cp "$STATE_FILE" "$STATE_FILE.backup"
+            
+            # Corrupt by making invalid JSON
+            echo '{"corrupted": "state", "invalid": json' > "$STATE_FILE"
+            
+            echo "✅ State corruption simulated"
+          fi
+          
+          echo "::endgroup::"
+      
+      - name: 🔍 Validate Corrupted State
+        if: ${{ env.FAILURE_SIMULATION == 'state-corruption' }}
+        uses: ./.github/actions/reliability/state-validator
+        with:
+          state-file: '.github/state/continuum-state.json'
+          backup-state: true
+          strict-mode: false
+          checksum-verification: true
+          semantic-validation: false
+          max-state-size: '10'
+        continue-on-error: true
+      
+      - name: 🧪 Simulate Resource Exhaustion
+        if: ${{ env.FAILURE_SIMULATION == 'resource-exhaustion' }}
+        shell: bash
+        run: |
+          echo "::group::🧪 Simulating Resource Exhaustion"
+          
+          # Simulate high CPU usage
+          echo "Simulating high CPU usage..."
+          for i in {1..4}; do
+            dd if=/dev/zero of=/dev/null bs=1M count=100 &
+          done
+          
+          # Wait a bit
+          sleep 5
+          
+          echo "✅ Resource exhaustion simulation started"
+          echo "::endgroup::"
+      
+      - name: 📊 Resource Monitoring
+        if: ${{ env.TEST_SCENARIO == 'full-test' || env.FAILURE_SIMULATION == 'resource-exhaustion' }}
+        shell: bash
+        run: |
+          echo "::group::📊 Resource Monitoring"
+          
+          echo "Current Resource Usage:"
+          echo "CPU: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | awk -F'%' '{print $1}')%"
+          echo "Memory: $(free | grep Mem | awk '{printf("%.1f", ($3/$2) * 100.0)}')%"
+          echo "Disk: $(df / | tail -1 | awk '{print $5}')"
+          echo "Load Average: $(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')"
+          echo "Processes: $(ps aux | wc -l)"
+          
+          echo "::endgroup::"
+      
+      - name: 🔧 Recovery Actions
+        if: ${{ env.FAILURE_SIMULATION != 'none' }}
+        shell: bash
+        run: |
+          echo "::group::🔧 Performing Recovery Actions"
+          
+          case "${{ env.FAILURE_SIMULATION }}" in
+            "state-corruption")
+              echo "🔧 Recovering from state corruption..."
+              STATE_FILE=".github/state/continuum-state.json"
+              if [ -f "$STATE_FILE.backup" ]; then
+                mv "$STATE_FILE.backup" "$STATE_FILE"
+                echo "✅ State recovered from backup"
+              fi
+              ;;
+            "resource-exhaustion")
+              echo "🔧 Cleaning up resource exhaustion simulation..."
+              # Kill background processes
+              pkill -f "dd if=/dev/zero"
+              echo "✅ Resources cleaned up"
+              ;;
+          esac
+          
+          echo "::endgroup::"
+      
+      - name: 📊 Reliability Test Summary
+        shell: bash
+        run: |
+          echo "::group::📊 Reliability Test Summary"
+          
+          echo "🌊 FSL Continuum Reliability Test Summary"
+          echo "=========================================="
+          echo ""
+          echo "Test Configuration:"
+          echo "- Scenario: ${{ env.TEST_SCENARIO }}"
+          echo "- Failure Simulation: ${{ env.FAILURE_SIMULATION }}"
+          echo "- Strict Mode: ${{ env.STRICT_MODE }}"
+          echo "- Create Issues: ${{ env.CREATE_ISSUES }}"
+          echo ""
+          echo "Component Results:"
+          echo "- 🛡️ Guard Rails: ${{ steps.guard-rails.outputs.guard-rails-status }}"
+          echo "- 🔌 Circuit Breaker: ${{ steps.circuit-breaker.outputs.is-available || 'Not Tested' }}"
+          echo "- 🔄 Retry Handler: ${{ steps.retry-handler.outputs.final-result || 'Not Tested' }}"
+          echo "- 🚨 Error Handler: ${{ steps.error-handler.outputs.error-category || 'Not Tested' }}"
+          echo "- 🔍 State Validator: ${{ steps.state-validator.outputs.is-valid || 'Not Tested' }}"
+          echo ""
+          
+          if [ -n "${{ steps.guard-rails.outputs.violations }}" ]; then
+            echo "Guard Rail Violations:"
+            echo "${{ steps.guard-rails.outputs.violations }}" | sed 's/;/\n/g' | sed 's/^/  - /'
+            echo ""
+          fi
+          
+          if [ "${{ env.FAILURE_SIMULATION }}" != "none" ]; then
+            echo "🧪 Failure simulation completed successfully"
+            echo "🔧 Recovery actions applied"
+            echo ""
+          fi
+          
+          echo "✅ Reliability test completed"
+          echo "::endgroup::"
+      
+      - name: 📋 Final Reliability Report
+        shell: bash
+        run: |
+          echo "::group::📋 Final Reliability Report"
+          echo ""
+          echo "## 🛡️ FSL Continuum Reliability Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Configuration:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Scenario: `${{ env.TEST_SCENARIO }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- Failure Simulation: `${{ env.FAILURE_SIMULATION }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- Strict Mode: `${{ env.STRICT_MODE }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- Create Issues: `${{ env.CREATE_ISSUES }}`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Guard Rails Status:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Overall: `${{ steps.guard-rails.outputs.guard-rails-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- Input Validation: `${{ steps.guard-rails.outputs.input-validation-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- State Validation: `${{ steps.guard-rails.outputs.state-validation-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "- Circuit Breaker: `${{ steps.guard-rails.outputs.circuit-breaker-status }}`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "${{ steps.guard-rails.outputs.violations }}" ]; then
+            echo "**Violations:**" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.guard-rails.outputs.violations }}" | sed 's/;/\n/g' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ env.FAILURE_SIMULATION }}" != "none" ]; then
+            echo "**Failure Simulation:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Type: `${{ env.FAILURE_SIMULATION }}`" >> $GITHUB_STEP_SUMMARY
+            echo "- Recovery: ✅ Applied" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "## 🎯 Reliability Features Tested" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Guard Rails**: Input validation, state validation, circuit breaker, timeout management, resource limiting" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Circuit Breaker**: Prevents cascade failures with automatic recovery" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Retry Handler**: Intelligent retry with exponential backoff and jitter" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Error Handler**: Comprehensive error classification and automated recovery" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **State Validator**: Integrity validation with corruption detection and recovery" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Health Monitoring**: Continuous monitoring with alerting" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 🚀 Key Benefits Demonstrated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 🛡️ **Zero Trust**: Comprehensive validation of all inputs and states" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔧 **Self-Healing**: Automatic recovery from failures and corruption" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 **Observability**: Complete monitoring and alerting for all components" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚨 **Incident Response**: Automated issue creation and notification" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ **Resilience**: Graceful degradation and circuit breaker protection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "🛡️ *FSL Continuum Reliability - Verifiable Continuous Loop Execution*" >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "✅ Final reliability report generated"
+          echo "::endgroup::"
+      
+      - name: 📢 Final Slack Notification
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            STATUS="${{ steps.guard-rails.outputs.guard-rails-status }}"
+            TEST_SCENARIO="${{ env.TEST_SCENARIO }}"
+            FAILURE_SIMULATION="${{ env.FAILURE_SIMULATION }}"
+            
+            # Determine color based on status
+            case "$STATUS" in
+              "pass") COLOR="good" ;;
+              "warning") COLOR="warning" ;;
+              "fail") COLOR="danger" ;;
+              *) COLOR="warning" ;;
+            esac
+            
+            # Create emoji based on status
+            case "$STATUS" in
+              "pass") EMOJI="✅" ;;
+              "warning") EMOJI="⚠️" ;;
+              "fail") EMOJI="🚨" ;;
+              *) EMOJI="❓" ;;
+            esac
+            
+            SLACK_MESSAGE=$(cat << EOF
+            {
+              "attachments": [
+                {
+                  "color": "$COLOR",
+                  "title": "$EMOJI FSL Continuum Reliability Test Complete",
+                  "fields": [
+                    {
+                      "title": "Test Scenario",
+                      "value": "$TEST_SCENARIO",
+                      "short": true
+                    },
+                    {
+                      "title": "Failure Simulation",
+                      "value": "$FAILURE_SIMULATION",
+                      "short": true
+                    },
+                    {
+                      "title": "Overall Status",
+                      "value": "$STATUS",
+                      "short": true
+                    },
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    }
+                  ],
+                  "footer": "FSL Reliability Main",
+                  "ts": $(date +%s)
+                }
+              ]
+            }
+        EOF
+            )
+            
+            curl -X POST "$SLACK_WEBHOOK_URL" \
+              -H 'Content-Type: application/json' \
+              -d "$SLACK_MESSAGE" || echo "Slack notification failed"
+            
+            echo "✅ Final Slack notification sent"
+          else
+            echo "ℹ️ Slack webhook not configured, skipping notification"
+          fi

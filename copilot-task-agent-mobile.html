@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copilot Task Agent - Mobile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#007AFF">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #007AFF;
+            --primary-dark: #0056B3;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --error-color: #dc3545;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-color: #e9ecef;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .mobile-container {
+            min-height: 100vh;
+            max-width: 480px;
+            margin: 0 auto;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        .app-header {
+            background: var(--card-bg);
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .app-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .app-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .main-content {
+            padding: 20px;
+            padding-bottom: 100px;
+        }
+
+        .quick-actions {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .quick-action {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .quick-action:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .quick-action:active {
+            transform: translateY(0);
+        }
+
+        .action-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 20px;
+        }
+
+        .action-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .prompt-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            background: var(--bg-color);
+            transition: border-color 0.2s ease;
+        }
+
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .prompt-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .voice-button {
+            width: 44px;
+            height: 44px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .voice-button:hover {
+            border-color: var(--primary-color);
+        }
+
+        .execute-button {
+            flex: 1;
+            height: 44px;
+            background: var(--primary-color);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .execute-button:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .execute-button:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .schema-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .schema-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .schema-type {
+            display: inline-block;
+            background: rgba(0, 122, 255, 0.1);
+            color: var(--primary-color);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .schema-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .requirements-list {
+            list-style: none;
+        }
+
+        .requirement-item {
+            padding: 12px 0 12px 16px;
+            border-left: 2px solid var(--primary-color);
+            background: var(--bg-color);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .validation-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .validation-status.valid {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success-color);
+        }
+
+        .validation-status.invalid {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--error-color);
+        }
+
+        .result-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .result-status {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-status.success {
+            color: var(--success-color);
+        }
+
+        .result-status.failed {
+            color: var(--error-color);
+        }
+
+        .result-message {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .generated-files {
+            background: var(--bg-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .file-icon {
+            margin-right: 12px;
+            font-size: 16px;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-content {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: var(--shadow-md);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        .loading-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .loading-subtext {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile-specific optimizations */
+        @media (max-width: 480px) {
+            .mobile-container {
+                max-width: 100%;
+                padding: 0;
+            }
+            
+            .quick-actions-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .main-content {
+                padding: 16px;
+            }
+        }
+
+        /* Safe area for iOS */
+        @supports (padding: max(0px)) {
+            .mobile-container {
+                padding-left: max(env(safe-area-inset-left), 16px);
+                padding-right: max(env(safe-area-inset-right), 16px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <!-- App Header -->
+        <header class="app-header">
+            <h1 class="app-title">Copilot Task Agent</h1>
+            <p class="app-subtitle">Prompt → Schema → Execution (Terminal Speed)</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Quick Actions -->
+            <section class="quick-actions">
+                <h2 class="section-title">
+                    ⚡ Quick Actions
+                </h2>
+                <div class="quick-actions-grid">
+                    <div class="quick-action" onclick="handleQuickAction('analyze')">
+                        <div class="action-icon">🔍</div>
+                        <div class="action-title">Analyze Repository</div>
+                    </div>
+                    <div class="quick-action" onclick="handleQuickAction('tech-stack')">
+                        <div class="action-icon">🏗️</div>
+                        <div class="action-title">Create Tech Stack</div>
+                    </div>
+                    <div class="quick-action" onclick="handleQuickAction('features')">
+                        <div class="action-icon">➕</div>
+                        <div class="action-title">Add Features</div>
+                    </div>
+                    <div class="quick-action" onclick="handleQuickAction('upgrade')">
+                        <div class="action-icon">🔄</div>
+                        <div class="action-title">Upgrade Architecture</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Prompt Section -->
+            <section class="prompt-section">
+                <h2 class="section-title">
+                    📝 Describe Your Task
+                </h2>
+                <textarea 
+                    id="promptInput" 
+                    class="prompt-textarea" 
+                    placeholder="Enter natural language description of what you want to accomplish..."
+                    oninput="handlePromptInput()"
+                ></textarea>
+                <div class="prompt-controls">
+                    <button class="voice-button" onclick="handleVoiceInput()">
+                        🎤
+                    </button>
+                    <button 
+                        id="executeButton" 
+                        class="execute-button" 
+                        onclick="handleExecute()" 
+                        disabled
+                    >
+                        <span>🚀</span>
+                        <span>Create & Execute</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Schema Section (hidden initially) -->
+            <section id="schemaSection" class="schema-section" style="display: none;">
+                <h2 class="section-title">
+                    📋 Generated OpenSpec Schema
+                </h2>
+                <div class="schema-title" id="schemaTitle"></div>
+                <span class="schema-type" id="schemaType"></span>
+                <p class="schema-description" id="schemaDescription"></p>
+                
+                <ul id="requirementsList" class="requirements-list"></ul>
+                
+                <div id="validationStatus" class="validation-status"></div>
+            </section>
+
+            <!-- Result Section (hidden initially) -->
+            <section id="resultSection" class="result-section" style="display: none;">
+                <h2 class="section-title">
+                    ✅ Execution Result
+                </h2>
+                <div class="result-status" id="resultStatus"></div>
+                <p class="result-message" id="resultMessage"></p>
+                
+                <div id="generatedFiles" class="generated-files" style="display: none;">
+                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Generated Files:</h3>
+                    <ul id="fileList" class="file-list"></ul>
+                </div>
+            </section>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Processing...</div>
+                <div class="loading-subtext">Uplifting to OpenSpec schema...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:8000';
+        let currentSchema = null;
+        let isProcessing = false;
+
+        // Quick action prompts
+        const quickActionPrompts = {
+            'analyze': 'Analyze this repository structure and suggest improvements for performance and maintainability',
+            'tech-stack': 'Create modern tech stack for web application with React, Node.js, PostgreSQL, and Docker deployment',
+            'features': 'Add authentication system with JWT tokens, user registration, login, and role-based access control',
+            'upgrade': 'Upgrade current monolith architecture to microservices with event-driven design, API gateway, and Kubernetes deployment'
+        };
+
+        // Handle quick action clicks
+        function handleQuickAction(action) {
+            const promptInput = document.getElementById('promptInput');
+            promptInput.value = quickActionPrompts[action];
+            handlePromptInput();
+            
+            // Auto-execute for quick actions
+            setTimeout(() => {
+                handleExecute();
+            }, 500);
+        }
+
+        // Handle prompt input changes
+        function handlePromptInput() {
+            const promptInput = document.getElementById('promptInput');
+            const executeButton = document.getElementById('executeButton');
+            
+            // Enable/disable execute button
+            if (promptInput.value.trim().length > 0) {
+                executeButton.disabled = false;
+            } else {
+                executeButton.disabled = true;
+            }
+        }
+
+        // Handle voice input (placeholder)
+        function handleVoiceInput() {
+            alert('Voice input is coming soon! For now, please type your description.');
+        }
+
+        // Show loading overlay
+        function showLoading(text = 'Processing...', subtext = 'Uplifting to OpenSpec schema...') {
+            const overlay = document.getElementById('loadingOverlay');
+            const loadingText = overlay.querySelector('.loading-text');
+            const loadingSubtext = overlay.querySelector('.loading-subtext');
+            
+            loadingText.textContent = text;
+            loadingSubtext.textContent = subtext;
+            overlay.style.display = 'flex';
+        }
+
+        // Hide loading overlay
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = 'none';
+        }
+
+        // Execute prompt uplift and task execution
+        async function handleExecute() {
+            if (isProcessing) return;
+            
+            const promptInput = document.getElementById('promptInput');
+            const prompt = promptInput.value.trim();
+            
+            if (!prompt) return;
+            
+            isProcessing = true;
+            showLoading('Processing your request...', 'Uplifting to OpenSpec schema...');
+            
+            try {
+                // Step 1: Uplift prompt to OpenSpec
+                const upliftResponse = await fetch(`${API_BASE_URL}/api/v1/prompt-uplift`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        natural_input: prompt,
+                        target_platform: 'mobile',
+                        execution_preference: 'terminal_like',
+                        ai_system_preference: 'auto_detect'
+                    })
+                });
+
+                const upliftResult = await upliftResponse.json();
+                
+                if (upliftResult.success) {
+                    // Show generated schema
+                    displaySchema(upliftResult.openspec_schema);
+                    
+                    // Auto-execute if validation is good
+                    if (upliftResult.validation_status === 'valid') {
+                        showLoading('Executing task...', 'Running with terminal-like speed...');
+                        
+                        // Step 2: Execute task
+                        const executeResponse = await fetch(`${API_BASE_URL}/api/v1/execute-task`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                openspec_schema: upliftResult.openspec_schema,
+                                execution_mode: 'terminal_like'
+                            })
+                        });
+
+                        const executeResult = await executeResponse.json();
+                        
+                        if (executeResult.status === 'completed') {
+                            displayResult(executeResult.result);
+                        } else {
+                            displayError('Execution failed', executeResult.result?.error || 'Unknown error');
+                        }
+                    } else {
+                        hideLoading();
+                        alert('Schema validation failed. Please review the generated schema before proceeding.');
+                    }
+                } else {
+                    hideLoading();
+                    alert('Failed to process your request: ' + (upliftResult.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Execution failed:', error);
+                hideLoading();
+                alert('Failed to process your request. Please check your connection and try again.');
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        // Display generated OpenSpec schema
+        function displaySchema(schema) {
+            currentSchema = schema;
+            
+            // Show schema section
+            const schemaSection = document.getElementById('schemaSection');
+            schemaSection.style.display = 'block';
+            
+            // Populate schema details
+            document.getElementById('schemaTitle').textContent = schema.title;
+            document.getElementById('schemaType').textContent = schema.spec_type.replace('_', ' ').toUpperCase();
+            document.getElementById('schemaDescription').textContent = schema.description;
+            
+            // Display requirements
+            const requirementsList = document.getElementById('requirementsList');
+            requirementsList.innerHTML = '';
+            
+            if (schema.requirements && schema.requirements.length > 0) {
+                schema.requirements.forEach(req => {
+                    const li = document.createElement('li');
+                    li.className = 'requirement-item';
+                    li.textContent = req;
+                    requirementsList.appendChild(li);
+                });
+            }
+            
+            // Display validation status
+            const validationStatus = document.getElementById('validationStatus');
+            validationStatus.className = `validation-status ${schema.validation_status}`;
+            validationStatus.innerHTML = `
+                ${schema.validation_status === 'valid' ? '✅' : '❌'} 
+                Status: ${schema.validation_status.toUpperCase()}
+            `;
+        }
+
+        // Display execution result
+        function displayResult(result) {
+            hideLoading();
+            
+            // Show result section
+            const resultSection = document.getElementById('resultSection');
+            resultSection.style.display = 'block';
+            
+            // Scroll to result
+            resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Populate result details
+            const resultStatus = document.getElementById('resultStatus');
+            resultStatus.className = `result-status ${result.execution_success ? 'success' : 'failed'}`;
+            resultStatus.innerHTML = `
+                ${result.execution_success ? '✅' : '❌'} 
+                ${result.execution_success ? 'EXECUTION SUCCESSFUL' : 'EXECUTION FAILED'}
+            `;
+            
+            document.getElementById('resultMessage').textContent = result.message || 'Task completed';
+            
+            // Display generated files if available
+            if (result.generated_files && result.generated_files.length > 0) {
+                const generatedFiles = document.getElementById('generatedFiles');
+                const fileList = document.getElementById('fileList');
+                
+                fileList.innerHTML = '';
+                result.generated_files.forEach(file => {
+                    const li = document.createElement('li');
+                    li.className = 'file-item';
+                    li.innerHTML = `
+                        <span class="file-icon">📄</span>
+                        <span>${file}</span>
+                    `;
+                    fileList.appendChild(li);
+                });
+                
+                generatedFiles.style.display = 'block';
+            }
+        }
+
+        // Display error
+        function displayError(title, message) {
+            hideLoading();
+            
+            const resultSection = document.getElementById('resultSection');
+            resultSection.style.display = 'block';
+            
+            resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            const resultStatus = document.getElementById('resultStatus');
+            resultStatus.className = 'result-status failed';
+            resultStatus.innerHTML = '❌ ERROR';
+            
+            document.getElementById('resultMessage').textContent = message;
+            document.getElementById('generatedFiles').style.display = 'none';
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Focus on prompt input
+            const promptInput = document.getElementById('promptInput');
+            promptInput.focus();
+            
+            // Check API connection
+            fetch(`${API_BASE_URL}/api/v1/status`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'active') {
+                        console.log('✅ Connected to Copilot Task Agent API');
+                    } else {
+                        console.error('❌ API connection failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Failed to connect to API:', error);
+                });
+        });
+
+        // Handle mobile viewport changes
+        window.addEventListener('resize', function() {
+            // Adjust layout for mobile
+            const isMobile = window.innerWidth <= 480;
+            document.body.classList.toggle('mobile', isMobile);
+        });
+    </script>
+</body>
+</html>

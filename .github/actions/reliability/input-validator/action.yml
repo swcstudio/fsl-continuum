@@ -1,0 +1,407 @@
+name: 'FSL Reliability - Input Validator'
+description: 'Comprehensive input validation and sanitization for FSL Continuum'
+author: 'FSL Continuum Reliability Team'
+branding:
+  icon: 'shield'
+  color: 'orange'
+
+inputs:
+  input-data:
+    description: 'Input data to validate (JSON string or file path)'
+    required: true
+  input-type:
+    description: 'Type of input (json, file, string, number, boolean)'
+    required: false
+    default: 'json'
+  schema:
+    description: 'JSON schema for validation (file path or inline JSON)'
+    required: false
+    type: string
+  strict-mode:
+    description: 'Fail on any validation errors'
+    required: false
+    default: 'true'
+    type: boolean
+  sanitize-input:
+    description: 'Sanitize input for security (remove HTML, scripts, etc.)'
+    required: false
+    default: 'true'
+    type: boolean
+  max-size:
+    description: 'Maximum input size in MB'
+    required: false
+    default: '10'
+    type: string
+  allow-list:
+    description: 'Comma-separated list of allowed fields (empty = all allowed)'
+    required: false
+    default: ''
+    type: string
+  block-list:
+    description: 'Comma-separated list of blocked patterns (regex)'
+    required: false
+    default: ''
+    type: string
+
+outputs:
+  is-valid:
+    description: 'Whether input passed validation'
+    value: ${{ steps.validate.outputs.is-valid }}
+  sanitized-data:
+    description: 'Sanitized input data'
+    value: ${{ steps.validate.outputs.sanitized-data }}
+  validation-errors:
+    description: 'List of validation errors'
+    value: ${{ steps.validate.outputs.validation-errors }}
+  input-size:
+    description: 'Size of input data in bytes'
+    value: ${{ steps.validate.outputs.input-size }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🛡️ Initialize Input Validation
+      id: init
+      shell: bash
+      run: |
+        echo "::group::🛡️ Initializing Input Validation"
+        
+        INPUT_DATA="${{ inputs.input-data }}"
+        INPUT_TYPE="${{ inputs.input-type }}"
+        STRICT_MODE="${{ inputs.strict-mode }}"
+        SANITIZE="${{ inputs.sanitize-input }}"
+        MAX_SIZE="${{ inputs.max-size }}"
+        ALLOW_LIST="${{ inputs.allow-list }}"
+        BLOCK_LIST="${{ inputs.block-list }}"
+        
+        echo "Input Type: $INPUT_TYPE"
+        echo "Strict Mode: $STRICT_MODE"
+        echo "Sanitize: $SANITIZE"
+        echo "Max Size: ${MAX_SIZE}MB"
+        echo "Allow List: $ALLOW_LIST"
+        echo "Block List: $BLOCK_LIST"
+        
+        # Create validation directory
+        mkdir -p .github/reliability/validation
+        
+        echo "::endgroup::"
+    
+    - name: 📊 Load and Validate Input
+      id: load-input
+      shell: bash
+      run: |
+        echo "::group::📊 Loading and Validating Input"
+        
+        INPUT_DATA="${{ inputs.input-data }}"
+        INPUT_TYPE="${{ inputs.input-type }}"
+        MAX_SIZE_BYTES=$((${{ inputs.max-size }} * 1024 * 1024))
+        
+        # Load input based on type
+        case "$INPUT_TYPE" in
+          "file")
+            if [ ! -f "$INPUT_DATA" ]; then
+              echo "❌ Input file not found: $INPUT_DATA"
+              exit 1
+            fi
+            
+            INPUT_SIZE=$(stat -c%s "$INPUT_DATA")
+            if [ "$INPUT_SIZE" -gt "$MAX_SIZE_BYTES" ]; then
+              echo "❌ Input file too large: $INPUT_SIZE bytes (max: $MAX_SIZE_BYTES bytes)"
+              exit 1
+            fi
+            
+            # Read file content
+            INPUT_CONTENT=$(cat "$INPUT_DATA")
+            ;;
+          "json")
+            # Check if input is a file path or JSON string
+            if [ -f "$INPUT_DATA" ]; then
+              INPUT_CONTENT=$(cat "$INPUT_DATA")
+            else
+              INPUT_CONTENT="$INPUT_DATA"
+            fi
+            
+            # Validate JSON syntax
+            if ! echo "$INPUT_CONTENT" | jq . > /dev/null 2>&1; then
+              echo "❌ Invalid JSON syntax"
+              exit 1
+            fi
+            
+            INPUT_SIZE=$(echo "$INPUT_CONTENT" | wc -c)
+            ;;
+          "string")
+            INPUT_CONTENT="$INPUT_DATA"
+            INPUT_SIZE=$(echo -n "$INPUT_CONTENT" | wc -c)
+            ;;
+          "number")
+            # Validate numeric input
+            if ! [[ "$INPUT_DATA" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+              echo "❌ Invalid number format: $INPUT_DATA"
+              exit 1
+            fi
+            INPUT_CONTENT="$INPUT_DATA"
+            INPUT_SIZE=$(echo -n "$INPUT_CONTENT" | wc -c)
+            ;;
+          "boolean")
+            # Validate boolean input
+            if [[ "$INPUT_DATA" =~ ^(true|false|1|0)$ ]]; then
+              INPUT_CONTENT="$INPUT_DATA"
+            else
+              echo "❌ Invalid boolean value: $INPUT_DATA"
+              exit 1
+            fi
+            INPUT_SIZE=$(echo -n "$INPUT_CONTENT" | wc -c)
+            ;;
+          *)
+            echo "❌ Unsupported input type: $INPUT_TYPE"
+            exit 1
+            ;;
+        esac
+        
+        # Check size limit
+        if [ "$INPUT_SIZE" -gt "$MAX_SIZE_BYTES" ]; then
+          echo "❌ Input too large: $INPUT_SIZE bytes (max: $MAX_SIZE_BYTES bytes)"
+          exit 1
+        fi
+        
+        echo "input-size=$INPUT_SIZE" >> $GITHUB_OUTPUT
+        echo "input-content=$INPUT_CONTENT" >> $GITHUB_OUTPUT
+        
+        echo "✅ Input loaded successfully ($INPUT_SIZE bytes)"
+        echo "::endgroup::"
+    
+    - name: 🔍 Schema Validation
+      id: schema-validation
+      if: inputs.schema != ''
+      shell: bash
+      run: |
+        echo "::group::🔍 Performing Schema Validation"
+        
+        INPUT_CONTENT="${{ steps.load-input.outputs.input-content }}"
+        SCHEMA="${{ inputs.schema }}"
+        
+        # Load schema
+        if [ -f "$SCHEMA" ]; then
+          SCHEMA_CONTENT=$(cat "$SCHEMA")
+        else
+          SCHEMA_CONTENT="$SCHEMA"
+        fi
+        
+        # Validate schema syntax
+        if ! echo "$SCHEMA_CONTENT" | jq . > /dev/null 2>&1; then
+          echo "❌ Invalid schema syntax"
+          exit 1
+        fi
+        
+        # Perform validation
+        VALIDATION_RESULT=$(echo "$INPUT_CONTENT" | jq --argjson schema "$SCHEMA_CONTENT" '
+          try (
+            if (. | test($schema)) then
+              {valid: true, errors: []}
+            else
+              {valid: false, errors: ["Schema validation failed"]}
+            end
+          ) catch {
+            valid: false,
+            errors: ["Schema validation error: \(.error)"]
+          }
+        ' 2>/dev/null || echo '{"valid": false, "errors": ["Schema validation error"]}')
+        
+        IS_VALID=$(echo "$VALIDATION_RESULT" | jq -r '.valid')
+        ERRORS=$(echo "$VALIDATION_RESULT" | jq -r '.errors[]')
+        
+        echo "schema-valid=$IS_VALID" >> $GITHUB_OUTPUT
+        echo "schema-errors=$ERRORS" >> $GITHUB_OUTPUT
+        
+        if [ "$IS_VALID" = "true" ]; then
+          echo "✅ Schema validation passed"
+        else
+          echo "❌ Schema validation failed:"
+          echo "$ERRORS" | sed 's/^/  - /'
+          if [ "${{ inputs.strict-mode }}" = "true" ]; then
+            exit 1
+          fi
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 🔒 Security Scanning and Sanitization
+      id: sanitize
+      shell: bash
+      run: |
+        echo "::group::🔒 Security Scanning and Sanitization"
+        
+        INPUT_CONTENT="${{ steps.load-input.outputs.input-content }}"
+        SANITIZE="${{ inputs.sanitize-input }}"
+        ALLOW_LIST="${{ inputs.allow-list }}"
+        BLOCK_LIST="${{ inputs.block-list }}"
+        
+        VALIDATION_ERRORS=""
+        SANITIZED_CONTENT="$INPUT_CONTENT"
+        
+        # Apply allow list filtering (if specified)
+        if [ -n "$ALLOW_LIST" ] && [ "$INPUT_TYPE" = "json" ]; then
+          echo "🔍 Applying allow list filtering..."
+          
+          # Create filtered JSON with only allowed fields
+          FILTER_SCRIPT='.'
+          IFS=',' read -ra ALLOWED_FIELDS <<< "$ALLOW_LIST"
+          for field in "${ALLOWED_FIELDS[@]}"; do
+            field=$(echo "$field" | xargs)  # Trim whitespace
+            FILTER_SCRIPT="$FILTER_SCRIPT | if has(\"$field\") then . else del(.\"$field\") end"
+          done
+          
+          SANITIZED_CONTENT=$(echo "$INPUT_CONTENT" | jq "$FILTER_SCRIPT")
+          echo "✅ Allow list filtering applied"
+        fi
+        
+        # Apply block list patterns
+        if [ -n "$BLOCK_LIST" ]; then
+          echo "🚫 Applying block list patterns..."
+          
+          IFS=',' read -ra BLOCKED_PATTERNS <<< "$BLOCK_LIST"
+          for pattern in "${BLOCKED_PATTERNS[@]}"; do
+            pattern=$(echo "$pattern" | xargs)  # Trim whitespace
+            if echo "$INPUT_CONTENT" | grep -qE "$pattern"; then
+              VALIDATION_ERRORS="$VALIDATION_ERRORS Blocked pattern detected: $pattern;"
+            fi
+          done
+          
+          if [ -n "$VALIDATION_ERRORS" ]; then
+            echo "❌ Block list violations found"
+            echo "$VALIDATION_ERRORS" | tr ';' '\n' | sed 's/^/  - /'
+            if [ "${{ inputs.strict-mode }}" = "true" ]; then
+              exit 1
+            fi
+          else
+            echo "✅ No block list violations"
+          fi
+        fi
+        
+        # Security sanitization
+        if [ "$SANITIZE" = "true" ]; then
+          echo "🧹 Performing security sanitization..."
+          
+          # Remove potentially dangerous content
+          SANITIZED_CONTENT=$(echo "$SANITIZED_CONTENT" | sed 's/<script[^>]*>.*<\/script>//gi' | sed 's/<iframe[^>]*>.*<\/iframe>//gi' | sed 's/javascript://gi' | sed 's/vbscript://gi')
+          
+          # SQL injection patterns
+          SANITIZED_CONTENT=$(echo "$SANITIZED_CONTENT" | sed 's/union\s+select//gi' | sed 's/drop\s+table//gi' | sed 's/insert\s+into//gi' | sed 's/delete\s+from//gi')
+          
+          # XSS patterns
+          SANITIZED_CONTENT=$(echo "$SANITIZED_CONTENT" | sed 's/on\w+\s*=\s*["\'][^"\']*["\']//gi')
+          
+          echo "✅ Security sanitization completed"
+        fi
+        
+        # Final validation for dangerous patterns
+        DANGEROUS_PATTERNS=("eval\(" "exec\(" "system\(" "<script" "javascript:" "vbscript:")
+        for pattern in "${DANGEROUS_PATTERNS[@]}"; do
+          if echo "$SANITIZED_CONTENT" | grep -iqE "$pattern"; then
+            VALIDATION_ERRORS="$VALIDATION_ERRORS Dangerous pattern detected: $pattern;"
+          fi
+        done
+        
+        echo "sanitized-data=$SANITIZED_CONTENT" >> $GITHUB_OUTPUT
+        echo "sanitization-errors=$VALIDATION_ERRORS" >> $GITHUB_OUTPUT
+        
+        if [ -n "$VALIDATION_ERRORS" ]; then
+          echo "⚠️ Security issues detected"
+          echo "$VALIDATION_ERRORS" | tr ';' '\n' | sed 's/^/  - /'
+          if [ "${{ inputs.strict-mode }}" = "true" ]; then
+            exit 1
+          fi
+        else
+          echo "✅ No security issues detected"
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: ✅ Final Validation
+      id: validate
+      shell: bash
+      run: |
+        echo "::group::✅ Final Validation"
+        
+        # Collect all validation results
+        INPUT_SIZE="${{ steps.load-input.outputs.input-size }}"
+        SANITIZED_CONTENT="${{ steps.sanitize.outputs.sanitized-data }}"
+        SCHEMA_VALID="${{ steps.schema-validation.outputs.schema-valid || 'true' }}"
+        SCHEMA_ERRORS="${{ steps.schema-validation.outputs.schema-errors || '' }}"
+        SANITIZATION_ERRORS="${{ steps.sanitize.outputs.sanitization-errors || '' }}"
+        
+        # Combine all errors
+        ALL_ERRORS=""
+        if [ -n "$SCHEMA_ERRORS" ] && [ "$SCHEMA_VALID" != "true" ]; then
+          ALL_ERRORS="$ALL_ERRORS Schema: $SCHEMA_ERRORS;"
+        fi
+        if [ -n "$SANITIZATION_ERRORS" ]; then
+          ALL_ERRORS="$ALL_ERRORS Security: $SANITIZATION_ERRORS;"
+        fi
+        
+        # Determine final validity
+        IS_VALID="true"
+        if [ -n "$ALL_ERRORS" ] && [ "${{ inputs.strict-mode }}" = "true" ]; then
+          IS_VALID="false"
+        fi
+        
+        # Output results
+        echo "is-valid=$IS_VALID" >> $GITHUB_OUTPUT
+        echo "sanitized-data=$SANITIZED_CONTENT" >> $GITHUB_OUTPUT
+        echo "validation-errors=$ALL_ERRORS" >> $GITHUB_OUTPUT
+        echo "input-size=$INPUT_SIZE" >> $GITHUB_OUTPUT
+        
+        # Final summary
+        echo ""
+        echo "🔍 Input Validation Summary"
+        echo "=========================="
+        echo "Input Size: $INPUT_SIZE bytes"
+        echo "Schema Valid: $SCHEMA_VALID"
+        echo "Security Issues: $([ -n "$SANITIZATION_ERRORS" ] && echo "Yes" || echo "No")"
+        echo "Overall Valid: $IS_VALID"
+        
+        if [ -n "$ALL_ERRORS" ]; then
+          echo ""
+          echo "⚠️ Validation Issues:"
+          echo "$ALL_ERRORS" | tr ';' '\n' | sed 's/^/  - /'
+        fi
+        
+        echo ""
+        if [ "$IS_VALID" = "true" ]; then
+          echo "✅ Input validation completed successfully"
+        else
+          echo "❌ Input validation failed (strict mode)"
+          exit 1
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 📊 Validation Report
+      shell: bash
+      run: |
+        echo "::group::📊 Validation Report"
+        echo ""
+        echo "## 🛡️ Input Validation Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Input Type: `${{ inputs.input-type }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Strict Mode: `${{ inputs.strict-mode }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Sanitization: `${{ inputs.sanitize-input }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Max Size: `${{ inputs.max-size }}MB`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Results:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Is Valid: `${{ steps.validate.outputs.is-valid }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Input Size: `${{ steps.validate.outputs.input-size }}` bytes" >> $GITHUB_STEP_SUMMARY
+        echo "- Schema Validation: `${{ steps.schema-validation.outputs.schema-valid || 'Not Applied' }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -n "${{ steps.validate.outputs.validation-errors }}" ]; then
+          echo "**Validation Issues:**" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.validate.outputs.validation-errors }}" | tr ';' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🛡️ *Input validation completed with comprehensive security scanning*" >> $GITHUB_STEP_SUMMARY
+        echo ""
+        echo "✅ Input validation report generated"
+        echo "::endgroup::"

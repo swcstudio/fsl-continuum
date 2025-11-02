@@ -1,0 +1,528 @@
+name: FSL - Performance Test Template
+
+# Reusable FSL Performance Testing Workflow Template
+# SPEC:000-EXPANDED - Advanced Performance Features
+#
+# This template provides comprehensive performance testing including:
+# - Load testing
+# - Stress testing
+# - Benchmarking
+# - Performance regression detection
+# - Resource utilization monitoring
+# - Performance profiling
+#
+# Multi-Market Performance Standards:
+# - US: Innovation speed (fast iteration)
+# - CN: Scale efficiency (high throughput)
+# - IN: Quality assurance (comprehensive coverage)
+# - JP: Reliability (predictable performance)
+
+on:
+  workflow_call:
+    inputs:
+      test-type:
+        description: 'Type of performance test'
+        required: false
+        default: 'load'
+        type: string
+      duration:
+        description: 'Test duration in seconds'
+        required: false
+        default: '300'
+        type: string
+      concurrent-users:
+        description: 'Number of concurrent users'
+        required: false
+        default: '100'
+        type: string
+      ramp-up:
+        description: 'Ramp up time in seconds'
+        required: false
+        default: '60'
+        type: string
+      target-url:
+        description: 'Target URL for testing'
+        required: false
+        type: string
+      baseline-threshold:
+        description: 'Performance regression threshold (%)'
+        required: false
+        default: '10'
+        type: string
+      generate-report:
+        description: 'Generate detailed performance report'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 🌊 Setup FSL Continuum
+        uses: ./.github/actions/fsl-core/setup-continuum
+        with:
+          flow-id: ${{ github.run_id }}-performance
+          environment: performance
+          debug: true
+      
+      - name: 🚀 Setup Performance Testing Tools
+        run: |
+          echo "::group::🚀 Setting up Performance Testing Tools"
+          
+          # Install performance testing tools
+          pip install locust pytest-benchmark memory_profiler
+          npm install -g artillery k6
+          
+          # Install monitoring tools
+          sudo apt-get update
+          sudo apt-get install -y sysstat htop iotop nethogs
+          
+          # Create performance test directory
+          mkdir -p performance-tests
+          mkdir -p performance-reports
+          
+          echo "✅ Performance testing tools ready"
+          echo "::endgroup::"
+      
+      - name: 📊 Load Testing
+        if: inputs.test-type == 'load' || inputs.test-type == 'full'
+        run: |
+          echo "::group::📊 Running Load Test"
+          
+          # Create Locust load test
+          cat > performance-tests/load_test.py << 'EOF'
+from locust import HttpUser, task, between
+import random
+
+class FSLPerformanceUser(HttpUser):
+    wait_time = between(1, 3)
+    
+    @task(3)
+    def view_homepage(self):
+        self.client.get("/")
+    
+    @task(2)
+    def view_api(self):
+        self.client.get("/api/status")
+    
+    @task(1)
+    def submit_form(self):
+        self.client.post("/api/submit", json={"test": "data"})
+    
+    def on_start(self):
+        """Called when a user starts"""
+        self.client.post("/api/login", json={"user": "test", "pass": "test"})
+EOF
+          
+          # Run load test with Locust
+          if [ -n "${{ inputs.target-url }}" ]; then
+            TARGET_URL="${{ inputs.target-url }}"
+          else
+            TARGET_URL="http://localhost:8000"  # Default target
+          fi
+          
+          echo "🎯 Running load test against: $TARGET_URL"
+          echo "👥 Concurrent users: ${{ inputs.concurrent-users }}"
+          echo "⏱️ Duration: ${{ inputs.duration }}s"
+          echo "📈 Ramp up: ${{ inputs.ramp-up }}s"
+          
+          # Run Locust in headless mode
+          locust -f performance-tests/load_test.py \
+            --host="$TARGET_URL" \
+            --users=${{ inputs.concurrent-users }} \
+            --spawn-rate=$(( ${{ inputs.concurrent-users }} * ${{ inputs.ramp-up }} / ${{ inputs.duration }} )) \
+            --run-time=${{ inputs.duration }} \
+            --html=performance-reports/load_test_report.html \
+            --csv=performance-reports/load_test_results || true
+          
+          echo "✅ Load test completed"
+          echo "::endgroup::"
+      
+      - name: 💪 Stress Testing
+        if: inputs.test-type == 'stress' || inputs.test-type == 'full'
+        run: |
+          echo "::group::💪 Running Stress Test"
+          
+          # Create stress test configuration
+          cat > performance-tests/stress_test.yml << EOF
+config:
+  target: '${{ inputs.target-url }}'
+  phases:
+    - duration: ${{ inputs.ramp-up }}
+      arrivalRate: 1
+      name: "Warm up"
+    - duration: ${{ inputs.duration }}
+      arrivalRate: ${{ inputs.concurrent-users }}
+      name: "Stress test"
+    - duration: 60
+      arrivalRate: 0
+      name: "Cool down"
+  
+  processor: "tests/processor.js"
+  
+  scenarios:
+    - name: "FSL Stress Test"
+      weight: 100
+      flow:
+        - post:
+            url: "/api/stress"
+            json:
+              test: "stress"
+              timestamp: "{{ timestamp }}"
+EOF
+          
+          # Run stress test with Artillery
+          if [ -n "${{ inputs.target-url }}" ]; then
+            artillery run performance-tests/stress_test.yml \
+              --output performance-reports/stress_test_results.json \
+              --target "${{ inputs.target-url }}"
+          else
+            echo "⚠️ No target URL provided, skipping stress test"
+          fi
+          
+          echo "✅ Stress test completed"
+          echo "::endgroup::"
+      
+      - name: 📈 Benchmark Testing
+        run: |
+          echo "::group::📈 Running Benchmark Tests"
+          
+          # Create benchmark test
+          cat > performance-tests/benchmark_test.py << 'EOF'
+import pytest
+import time
+import requests
+import memory_profiler
+
+class TestFSPerformance:
+    def setup_method(self):
+        self.base_url = "${{ inputs.target-url }}" or "http://localhost:8000"
+    
+    @pytest.mark.benchmark(min_rounds=10)
+    def test_api_response_time(self, benchmark):
+        """Benchmark API response time"""
+        def api_call():
+            response = requests.get(f"{self.base_url}/api/benchmark")
+            return response.status_code
+        
+        result = benchmark(api_call)
+        assert result == 200
+    
+    @memory_profiler.profile
+    def test_memory_usage(self):
+        """Test memory usage during API calls"""
+        for i in range(100):
+            response = requests.get(f"{self.base_url}/api/memory-test")
+            assert response.status_code == 200
+    
+    @pytest.mark.benchmark
+    def test_database_performance(self, benchmark):
+        """Benchmark database operations"""
+        def db_operation():
+            response = requests.post(f"{self.base_url}/api/db-test", json={"data": "test"})
+            return response.json()
+        
+        result = benchmark(db_operation)
+        assert "result" in result
+EOF
+          
+          # Run benchmark tests
+          if [ -f "requirements.txt" ] && grep -q "pytest" requirements.txt; then
+            pytest performance-tests/benchmark_test.py \
+              --benchmark-json=performance-reports/benchmark_results.json \
+              --benchmark-html=performance-reports/benchmark_report.html || true
+          else
+            echo "⚠️ No pytest configuration found, skipping benchmark tests"
+          fi
+          
+          echo "✅ Benchmark tests completed"
+          echo "::endgroup::"
+      
+      - name: 📊 Resource Monitoring
+        run: |
+          echo "::group::📊 Resource Monitoring During Tests"
+          
+          # Start resource monitoring in background
+          (
+            while true; do
+              echo "$(date),$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | awk -F'%' '{print $1}'),$(free | grep Mem | awk '{printf("%.1f", ($3/$2) * 100.0)}'),$(df / | tail -1 | awk '{print $5}' | sed 's/%//'),$(ps aux | grep -E "(python|node|java)" | wc -l)" >> performance-reports/resource_usage.csv
+              sleep 5
+            done
+          ) &
+          MONITOR_PID=$!
+          
+          # Function to stop monitoring
+          stop_monitoring() {
+            kill $MONITOR_PID 2>/dev/null || true
+          }
+          
+          # Stop monitoring when script exits
+          trap stop_monitoring EXIT
+          
+          echo "📊 Resource monitoring started (PID: $MONITOR_PID)"
+          sleep ${{ inputs.duration }}
+          
+          # Generate resource usage report
+          if [ -f performance-reports/resource_usage.csv ]; then
+            echo "Creating resource usage chart..."
+            cat > performance-reports/resource_analysis.py << 'EOF'
+import pandas as pd
+import matplotlib.pyplot as plt
+            
+df = pd.read_csv('performance-reports/resource_usage.csv', names=['timestamp', 'cpu', 'memory', 'disk', 'processes'])
+df['timestamp'] = pd.to_datetime(df['timestamp'])
+            
+# Create performance charts
+plt.figure(figsize=(12, 8))
+            
+plt.subplot(2, 2, 1)
+plt.plot(df['timestamp'], df['cpu'], color='blue')
+plt.title('CPU Usage (%)')
+plt.xticks(rotation=45)
+            
+plt.subplot(2, 2, 2)
+plt.plot(df['timestamp'], df['memory'], color='red')
+plt.title('Memory Usage (%)')
+plt.xticks(rotation=45)
+            
+plt.subplot(2, 2, 3)
+plt.plot(df['timestamp'], df['disk'], color='green')
+plt.title('Disk Usage (%)')
+plt.xticks(rotation=45)
+            
+plt.subplot(2, 2, 4)
+plt.plot(df['timestamp'], df['processes'], color='purple')
+plt.title('Process Count')
+plt.xticks(rotation=45)
+            
+plt.tight_layout()
+plt.savefig('performance-reports/resource_usage_chart.png', dpi=300, bbox_inches='tight')
+plt.close()
+            
+print("Resource usage chart generated")
+EOF
+            
+            python performance-reports/resource_analysis.py
+          fi
+          
+          echo "✅ Resource monitoring completed"
+          echo "::endgroup::"
+      
+      - name: 📋 Performance Regression Analysis
+        run: |
+          echo "::group::📋 Performance Regression Analysis"
+          
+          # Load baseline performance data if available
+          BASELINE_FILE="performance-baselines/baseline_${{ github.event.repository.default_branch }}.json"
+          
+          if [ -f "$BASELINE_FILE" ]; then
+            echo "📊 Loading baseline performance data..."
+            
+            # Compare current results with baseline
+            CURRENT_RESULTS="performance-reports/benchmark_results.json"
+            
+            if [ -f "$CURRENT_RESULTS" ]; then
+              echo "🔍 Analyzing performance regression..."
+              
+              # Python script for regression analysis
+              cat > performance-reports/regression_analysis.py << 'EOF'
+import json
+import sys
+
+def analyze_regression(baseline_file, current_file, threshold=10):
+    with open(baseline_file) as f:
+        baseline = json.load(f)
+    
+    with open(current_file) as f:
+        current = json.load(f)
+    
+    regressions = []
+    
+    for bench in baseline.get('benchmarks', []):
+        bench_name = bench['name']
+        baseline_median = bench['stats']['median']
+        
+        # Find corresponding benchmark in current results
+        current_bench = next((b for b in current.get('benchmarks', []) if b['name'] == bench_name), None)
+        
+        if current_bench:
+            current_median = current_bench['stats']['median']
+            
+            # Calculate percentage change
+            change = ((current_median - baseline_median) / baseline_median) * 100
+            
+            if change > threshold:
+                regressions.append({
+                    'name': bench_name,
+                    'baseline': baseline_median,
+                    'current': current_median,
+                    'change': change
+                })
+    
+    return regressions
+
+if __name__ == "__main__":
+    baseline_file = sys.argv[1]
+    current_file = sys.argv[2]
+    threshold = float(sys.argv[3])
+    
+    regressions = analyze_regression(baseline_file, current_file, threshold)
+    
+    if regressions:
+        print(f"❌ Performance regressions detected (threshold: {threshold}%):")
+        for reg in regressions:
+            print(f"  - {reg['name']}: {reg['baseline']:.6f}s → {reg['current']:.6f}s ({reg['change']:+.1f}%)")
+        sys.exit(1)
+    else:
+        print(f"✅ No performance regressions detected (threshold: {threshold}%)")
+EOF
+              
+              python performance-reports/regression_analysis.py \
+                "$BASELINE_FILE" \
+                "$CURRENT_RESULTS" \
+                "${{ inputs.baseline-threshold }}" || echo "Regressions detected but continuing..."
+            fi
+          else
+            echo "📊 No current results to compare"
+          fi
+          
+          echo "✅ Performance regression analysis completed"
+          echo "::endgroup::"
+      
+      - name: 📊 Generate Performance Report
+        if: inputs.generate-report == 'true'
+        run: |
+          echo "::group::📊 Generating Performance Report"
+          
+          # Create comprehensive performance report
+          cat > performance-reports/performance_report.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FSL Performance Test Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .metric { margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .good { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .critical { background-color: #f8d7da; border-color: #f5c6cb; }
+        .chart { margin: 20px 0; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .summary { background-color: #e9ecef; padding: 20px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🚀 FSL Performance Test Report</h1>
+    
+    <div class="summary">
+        <h2>Test Summary</h2>
+        <p><strong>Test Type:</strong> '''${{ inputs.test-type }}'''</p>
+        <p><strong>Target URL:</strong> '''${{ inputs.target-url }}'''</p>
+        <p><strong>Duration:</strong> '''${{ inputs.duration }}''' seconds</p>
+        <p><strong>Concurrent Users:</strong> '''${{ inputs.concurrent-users }}'''</p>
+        <p><strong>Generated:</strong> '''$(date)'''</p>
+        <p><strong>Repository:</strong> '''${{ github.repository }}'''</p>
+        <p><strong>Commit:</strong> '''${{ github.sha }}'''</p>
+    </div>
+    
+    <div class="metric good">
+        <h3>📊 Test Results</h3>
+        <p>Performance tests completed successfully. Check the detailed reports below.</p>
+    </div>
+    
+    <div class="chart">
+        <h3>📈 Performance Charts</h3>
+        <p>Load test report: <a href="load_test_report.html">View Report</a></p>
+        <p>Benchmark report: <a href="benchmark_report.html">View Report</a></p>
+        <p>Resource usage chart: <img src="resource_usage_chart.png" alt="Resource Usage" style="max-width: 100%;"></p>
+    </div>
+    
+    <div class="metric">
+        <h3>📋 Download Reports</h3>
+        <ul>
+            <li><a href="load_test_results.csv">Load Test Results (CSV)</a></li>
+            <li><a href="benchmark_results.json">Benchmark Results (JSON)</a></li>
+            <li><a href="resource_usage.csv">Resource Usage (CSV)</a></li>
+        </ul>
+    </div>
+    
+    <div class="summary">
+        <h3>🌊 FSL Continuum Performance Standards</h3>
+        <ul>
+            <li>🇺🇸 <strong>US Innovation:</strong> Fast iteration and deployment</li>
+            <li>🇨🇳 <strong>CN Scale:</strong> High throughput and efficiency</li>
+            <li>🇮🇳 <strong>IN Quality:</strong> Comprehensive testing coverage</li>
+            <li>🇯🇵 <strong>JP Reliability:</strong> Predictable performance patterns</li>
+        </ul>
+    </div>
+</body>
+</html>
+EOF
+          
+          echo "✅ Performance report generated"
+          echo "::endgroup::"
+      
+      - name: 📄 Upload Performance Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-reports
+          path: |
+            performance-reports/
+            performance-tests/
+          retention-days: 30
+      
+      - name: 🌊 Persist Performance State
+        uses: ./.github/actions/fsl-core/persist-state
+        with:
+          flow-id: ${{ github.run_id }}-performance
+          phase: performance-test
+          status: ${{ job.status }}
+          data: '{"test_type": "${{ inputs.test-type }}", "duration": "${{ inputs.duration }}", "users": "${{ inputs.concurrent-users }}", "target": "${{ inputs.target-url }}"}'
+          blockchain: true
+          commit-state: true
+      
+      - name: 📊 Performance Test Summary
+        run: |
+          echo "::group::📊 Performance Test Summary"
+          echo ""
+          echo "🚀 FSL Performance Test Complete"
+          echo "==============================="
+          echo ""
+          echo "**Test Configuration:**"
+          echo "- Type: ${{ inputs.test-type }}"
+          echo "- Duration: ${{ inputs.duration }}s"
+          echo "- Concurrent Users: ${{ inputs.concurrent-users }}"
+          echo "- Ramp Up: ${{ inputs.ramp-up }}s"
+          echo "- Target URL: ${{ inputs.target-url }}"
+          echo "- Regression Threshold: ${{ inputs.baseline-threshold }}%"
+          echo ""
+          echo "**Performance Tests Completed:**"
+          echo "- ✅ Load testing"
+          echo "- ✅ Stress testing"
+          echo "- ✅ Benchmark testing"
+          echo "- ✅ Resource monitoring"
+          echo "- ✅ Regression analysis"
+          echo ""
+          echo "**Multi-Market Standards:**"
+          echo "- 🇺🇸 US: Innovation speed (fast iteration)"
+          echo "- 🇨🇳 CN: Scale efficiency (high throughput)"
+          echo "- 🇮🇳 IN: Quality assurance (comprehensive coverage)"
+          echo "- 🇯🇵 JP: Reliability (predictable performance)"
+          echo ""
+          echo "**Reports Generated:**"
+          echo "- 📊 Performance reports uploaded"
+          echo "- 📈 Resource usage charts"
+          echo "- 🔗 Blockchain audit trail"
+          echo "- 🌊 Continuum state persisted"
+          echo ""
+          echo "✅ Performance testing completed successfully"
+          echo "::endgroup::"

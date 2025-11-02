@@ -1,0 +1,420 @@
+name: 'FSL Reliability - Guard Rails'
+description: 'Comprehensive guard rails system for workflow protection and safety'
+author: 'FSL Continuum Reliability Team'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  enable-input-validation:
+    description: 'Enable input validation guard rails'
+    required: false
+    default: 'true'
+    type: boolean
+  enable-state-validation:
+    description: 'Enable state validation guard rails'
+    required: false
+    default: 'true'
+    type: boolean
+  enable-circuit-breaker:
+    description: 'Enable circuit breaker guard rails'
+    required: false
+    default: 'true'
+    type: boolean
+  enable-timeout-management:
+    description: 'Enable timeout management guard rails'
+    required: false
+    default: 'true'
+    type: boolean
+  enable-resource-limiting:
+    description: 'Enable resource limiting guard rails'
+    required: false
+    default: 'true'
+    type: boolean
+  workflow-context:
+    description: 'Workflow context for guard rails (JSON)'
+    required: false
+    type: string
+  strict-mode:
+    description: 'Fail on any guard rail violations'
+    required: false
+    default: 'true'
+    type: boolean
+
+outputs:
+  guard-rails-status:
+    description: 'Overall guard rails status'
+    value: ${{ steps.summary.outputs.guard-rails-status }}
+  violations:
+    description: 'List of guard rail violations'
+    value: ${{ steps.summary.outputs.violations }}
+  input-validation-status:
+    description: 'Input validation status'
+    value: ${{ steps.input-validation.outputs.is-valid }}
+  state-validation-status:
+    description: 'State validation status'
+    value: ${{ steps.state-validation.outputs.is-valid }}
+  circuit-breaker-status:
+    description: 'Circuit breaker status'
+    value: ${{ steps.circuit-breaker.outputs.is-available }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🛡️ Initialize Guard Rails
+      id: init
+      shell: bash
+      run: |
+        echo "::group::🛡️ Initializing Guard Rails"
+        
+        ENABLE_INPUT_VALIDATION="${{ inputs.enable-input-validation }}"
+        ENABLE_STATE_VALIDATION="${{ inputs.enable-state-validation }}"
+        ENABLE_CIRCUIT_BREAKER="${{ inputs.enable-circuit-breaker }}"
+        ENABLE_TIMEOUT_MANAGEMENT="${{ inputs.enable-timeout-management }}"
+        ENABLE_RESOURCE_LIMITING="${{ inputs.enable-resource-limiting }}"
+        WORKFLOW_CONTEXT="${{ inputs.workflow-context }}"
+        STRICT_MODE="${{ inputs.strict-mode }}"
+        
+        echo "Input Validation: $ENABLE_INPUT_VALIDATION"
+        echo "State Validation: $ENABLE_STATE_VALIDATION"
+        echo "Circuit Breaker: $ENABLE_CIRCUIT_BREAKER"
+        echo "Timeout Management: $ENABLE_TIMEOUT_MANAGEMENT"
+        echo "Resource Limiting: $ENABLE_RESOURCE_LIMITING"
+        echo "Strict Mode: $STRICT_MODE"
+        
+        # Create guard rails directory
+        mkdir -p .github/reliability/guard-rails
+        
+        # Initialize guard rails context
+        if [ -z "$WORKFLOW_CONTEXT" ]; then
+          WORKFLOW_CONTEXT=$(cat << EOF
+          {
+            "workflow": "${{ github.workflow }}",
+            "run_id": "${{ github.run_id }}",
+            "job": "${{ github.job }}",
+            "actor": "${{ github.actor }}",
+            "repository": "${{ github.repository }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "enabled_guard_rails": {
+              "input_validation": $ENABLE_INPUT_VALIDATION,
+              "state_validation": $ENABLE_STATE_VALIDATION,
+              "circuit_breaker": $ENABLE_CIRCUIT_BREAKER,
+              "timeout_management": $ENABLE_TIMEOUT_MANAGEMENT,
+              "resource_limiting": $ENABLE_RESOURCE_LIMITING
+            }
+          }
+        EOF
+        )
+        fi
+        
+        echo "workflow-context=$WORKFLOW_CONTEXT" >> $GITHUB_OUTPUT
+        
+        echo "✅ Guard rails initialized"
+        echo "::endgroup::"
+    
+    - name: 🔍 Input Validation Guard Rails
+        id: input-validation
+        if: inputs.enable-input-validation == 'true'
+        uses: ./.github/actions/reliability/input-validator
+        with:
+          input-data: '${{ inputs.workflow-context }}'
+          input-type: 'json'
+          schema: '.github/reliability/config/guard-rails-input-schema.json'
+          strict-mode: '${{ inputs.strict-mode }}'
+          sanitize-input: true
+          max-size: '10'
+          block-list: 'eval\(|exec\(|system\(|<script|javascript:'
+        continue-on-error: true
+    
+    - name: 🔍 State Validation Guard Rails
+      id: state-validation
+      if: inputs.enable-state-validation == 'true'
+      uses: ./.github/actions/reliability/state-validator
+      with:
+        state-file: '.github/state/continuum-state.json'
+        backup-state: true
+        strict-mode: false
+        checksum-verification: true
+        semantic-validation: true
+        max-state-size: '100'
+      continue-on-error: true
+    
+    - name: 🔌 Circuit Breaker Guard Rails
+      id: circuit-breaker
+      if: inputs.enable-circuit-breaker == 'true'
+      uses: ./.github/actions/reliability/circuit-breaker
+      with:
+        service-name: 'fsl-continuum-workflow'
+        operation: 'check'
+        failure-threshold: '5'
+        recovery-timeout: '60'
+        half-open-max-calls: '3'
+      continue-on-error: true
+    
+    - name: ⏱️ Timeout Management Guard Rails
+      id: timeout-management
+      if: inputs.enable-timeout-management == 'true'
+      shell: bash
+      run: |
+        echo "::group::⏱️ Timeout Management Guard Rails"
+        
+        TIMEOUT_STATUS="pass"
+        TIMEOUT_VIOLATIONS=""
+        
+        # Set timeout for this step
+        timeout 300 bash -c '
+          echo "⏱️ Managing timeouts for workflow operations..."
+          
+          # Check for long-running operations
+          CURRENT_TIME=$(date -u +%s)
+          WORKFLOW_START_TIME=$(date -d "${{ github.event.created_at }}" +%s 2>/dev/null || echo "$CURRENT_TIME")
+          WORKFLOW_DURATION=$((CURRENT_TIME - WORKFLOW_START_TIME))
+          
+          # Maximum workflow duration (6 hours)
+          MAX_WORKFLOW_DURATION=21600
+          
+          if [ "$WORKFLOW_DURATION" -gt "$MAX_WORKFLOW_DURATION" ]; then
+            echo "⚠️ Workflow duration exceeded: ${WORKFLOW_DURATION}s (max: ${MAX_WORKFLOW_DURATION}s)"
+            TIMEOUT_VIOLATIONS="Workflow duration exceeded;"
+            TIMEOUT_STATUS="fail"
+          else
+            echo "✅ Workflow duration acceptable: ${WORKFLOW_DURATION}s"
+          fi
+          
+          # Check job timeout
+          JOB_TIMEOUT=$(echo "${{ github.job }}" | jq -r '.timeout_minutes // 360' 2>/dev/null || echo "360")
+          echo "Job timeout: ${JOB_TIMEOUT} minutes"
+        ' || {
+          echo "⚠️ Timeout management check timed out"
+          TIMEOUT_VIOLATIONS="Timeout management check timed out;"
+          TIMEOUT_STATUS="fail"
+        }
+        
+        echo "status=$TIMEOUT_STATUS" >> $GITHUB_OUTPUT
+        echo "violations=$TIMEOUT_VIOLATIONS" >> $GITHUB_OUTPUT
+        
+        echo "Timeout Management Status: $TIMEOUT_STATUS"
+        if [ -n "$TIMEOUT_VIOLATIONS" ]; then
+          echo "Violations: $TIMEOUT_VIOLATIONS"
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 📊 Resource Limiting Guard Rails
+      id: resource-limiting
+      if: inputs.enable-resource-limiting == 'true'
+      shell: bash
+      run: |
+        echo "::group::📊 Resource Limiting Guard Rails"
+        
+        RESOURCE_STATUS="pass"
+        RESOURCE_VIOLATIONS=""
+        
+        # Check CPU usage
+        CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | awk -F'%' '{print $1}')
+        if (( $(echo "$CPU_USAGE > 80" | bc -l) )); then
+          RESOURCE_VIOLATIONS="$RESOURCE_VIOLATIONS High CPU usage: $CPU_USAGE%;"
+          RESOURCE_STATUS="warning"
+        fi
+        
+        # Check memory usage
+        MEMORY_USAGE=$(free | grep Mem | awk '{printf("%.1f", ($3/$2) * 100.0)}')
+        if (( $(echo "$MEMORY_USAGE > 85" | bc -l) )); then
+          RESOURCE_VIOLATIONS="$RESOURCE_VIOLATIONS High memory usage: $MEMORY_USAGE%;"
+          if [ "$RESOURCE_STATUS" != "warning" ]; then
+            RESOURCE_STATUS="warning"
+          fi
+        fi
+        
+        # Check disk usage
+        DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+        if [ "$DISK_USAGE" -gt 90 ]; then
+          RESOURCE_VIOLATIONS="$RESOURCE_VIOLATIONS High disk usage: $DISK_USAGE%;"
+          RESOURCE_STATUS="fail"
+        fi
+        
+        # Check number of processes
+        PROCESS_COUNT=$(ps aux | wc -l)
+        MAX_PROCESSES=1000
+        if [ "$PROCESS_COUNT" -gt "$MAX_PROCESSES" ]; then
+          RESOURCE_VIOLATIONS="$RESOURCE_VIOLATIONS High process count: $PROCESS_COUNT;"
+          if [ "$RESOURCE_STATUS" = "pass" ]; then
+            RESOURCE_STATUS="warning"
+          fi
+        fi
+        
+        echo "status=$RESOURCE_STATUS" >> $GITHUB_OUTPUT
+        echo "violations=$RESOURCE_VIOLATIONS" >> $GITHUB_OUTPUT
+        echo "cpu-usage=$CPU_USAGE" >> $GITHUB_OUTPUT
+        echo "memory-usage=$MEMORY_USAGE" >> $GITHUB_OUTPUT
+        echo "disk-usage=$DISK_USAGE" >> $GITHUB_OUTPUT
+        echo "process-count=$PROCESS_COUNT" >> $GITHUB_OUTPUT
+        
+        echo "Resource Limiting Status: $RESOURCE_STATUS"
+        echo "CPU Usage: $CPU_USAGE%"
+        echo "Memory Usage: $MEMORY_USAGE%"
+        echo "Disk Usage: $DISK_USAGE%"
+        echo "Process Count: $PROCESS_COUNT"
+        
+        if [ -n "$RESOURCE_VIOLATIONS" ]; then
+          echo "Violations: $RESOURCE_VIOLATIONS"
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 📋 Guard Rails Summary
+      id: summary
+      shell: bash
+      run: |
+        echo "::group::📋 Guard Rails Summary"
+        
+        # Collect all guard rails status
+        INPUT_VALIDATION_STATUS="${{ steps.input-validation.outputs.is-valid || 'true' }}"
+        STATE_VALIDATION_STATUS="${{ steps.state-validation.outputs.is-valid || 'true' }}"
+        CIRCUIT_BREAKER_STATUS="${{ steps.circuit-breaker.outputs.is-available || 'true' }}"
+        TIMEOUT_STATUS="${{ steps.timeout-management.outputs.status || 'pass' }}"
+        RESOURCE_STATUS="${{ steps.resource-limiting.outputs.status || 'pass' }}"
+        
+        # Collect all violations
+        INPUT_VIOLATIONS="${{ steps.input-validation.outputs.validation-errors || '' }}"
+        STATE_VIOLATIONS="${{ steps.state-validation.outputs.validation-errors || '' }}"
+        TIMEOUT_VIOLATIONS="${{ steps.timeout-management.outputs.violations || '' }}"
+        RESOURCE_VIOLATIONS="${{ steps.resource-limiting.outputs.violations || '' }}"
+        
+        ALL_VIOLATIONS=""
+        [ -n "$INPUT_VIOLATIONS" ] && ALL_VIOLATIONS="$ALL_VIOLATIONS Input: $INPUT_VIOLATIONS"
+        [ -n "$STATE_VIOLATIONS" ] && ALL_VIOLATIONS="$ALL_VIOLATIONS State: $STATE_VIOLATIONS"
+        [ -n "$TIMEOUT_VIOLATIONS" ] && ALL_VIOLATIONS="$ALL_VIOLATIONS Timeout: $TIMEOUT_VIOLATIONS"
+        [ -n "$RESOURCE_VIOLATIONS" ] && ALL_VIOLATIONS="$ALL_VIOLATIONS Resource: $RESOURCE_VIOLATIONS"
+        
+        # Determine overall status
+        GUARD_RAILS_STATUS="pass"
+        
+        if [ "$INPUT_VALIDATION_STATUS" != "true" ] || \
+           [ "$STATE_VALIDATION_STATUS" != "true" ] || \
+           [ "$CIRCUIT_BREAKER_STATUS" != "true" ] || \
+           [ "$TIMEOUT_STATUS" = "fail" ] || \
+           [ "$RESOURCE_STATUS" = "fail" ]; then
+          GUARD_RAILS_STATUS="fail"
+        elif [ "$TIMEOUT_STATUS" = "warning" ] || \
+             [ "$RESOURCE_STATUS" = "warning" ] || \
+             [ -n "$ALL_VIOLATIONS" ]; then
+          GUARD_RAILS_STATUS="warning"
+        fi
+        
+        echo "guard-rails-status=$GUARD_RAILS_STATUS" >> $GITHUB_OUTPUT
+        echo "violations=$ALL_VIOLATIONS" >> $GITHUB_OUTPUT
+        echo "input-validation-status=$INPUT_VALIDATION_STATUS" >> $GITHUB_OUTPUT
+        echo "state-validation-status=$STATE_VALIDATION_STATUS" >> $GITHUB_OUTPUT
+        echo "circuit-breaker-status=$CIRCUIT_BREAKER_STATUS" >> $GITHUB_OUTPUT
+        
+        # Create guard rails report
+        GUARD_RAILS_REPORT=$(cat << EOF
+        {
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "workflow": "${{ github.workflow }}",
+          "run_id": "${{ github.run_id }}",
+          "job": "${{ github.job }}",
+          "overall_status": "$GUARD_RAILS_STATUS",
+          "guard_rails": {
+            "input_validation": {
+              "enabled": "${{ inputs.enable-input-validation }}",
+              "status": "$INPUT_VALIDATION_STATUS",
+              "violations": "$INPUT_VIOLATIONS"
+            },
+            "state_validation": {
+              "enabled": "${{ inputs.enable-state-validation }}",
+              "status": "$STATE_VALIDATION_STATUS",
+              "violations": "$STATE_VIOLATIONS"
+            },
+            "circuit_breaker": {
+              "enabled": "${{ inputs.enable-circuit-breaker }}",
+              "status": "$CIRCUIT_BREAKER_STATUS"
+            },
+            "timeout_management": {
+              "enabled": "${{ inputs.enable-timeout-management }}",
+              "status": "$TIMEOUT_STATUS",
+              "violations": "$TIMEOUT_VIOLATIONS"
+            },
+            "resource_limiting": {
+              "enabled": "${{ inputs.enable-resource-limiting }}",
+              "status": "$RESOURCE_STATUS",
+              "violations": "$RESOURCE_VIOLATIONS"
+            }
+          },
+          "all_violations": "$ALL_VIOLATIONS",
+          "strict_mode": "${{ inputs.strict-mode }}"
+        }
+        EOF
+        )
+        
+        echo "$GUARD_RAILS_REPORT" > ".github/reliability/guard-rails/guard-rails-report-$(date +%Y%m%d-%H%M%S).json"
+        
+        echo ""
+        echo "🛡️ FSL Continuum Guard Rails Summary"
+        echo "====================================="
+        echo "Overall Status: $GUARD_RAILS_STATUS"
+        echo "Strict Mode: ${{ inputs.strict-mode }}"
+        echo ""
+        echo "Guard Rails Status:"
+        echo "  🔍 Input Validation: $INPUT_VALIDATION_STATUS"
+        echo "  🔍 State Validation: $STATE_VALIDATION_STATUS"
+        echo "  🔌 Circuit Breaker: $CIRCUIT_BREAKER_STATUS"
+        echo "  ⏱️ Timeout Management: $TIMEOUT_STATUS"
+        echo "  📊 Resource Limiting: $RESOURCE_STATUS"
+        echo ""
+        
+        if [ -n "$ALL_VIOLATIONS" ]; then
+          echo "⚠️ Guard Rail Violations:"
+          echo "$ALL_VIOLATIONS" | sed 's/;/\n/g' | sed 's/^/  - /'
+        else
+          echo "✅ No guard rail violations detected"
+        fi
+        
+        # Fail if strict mode and there are violations
+        if [ "${{ inputs.strict-mode }}" = "true" ] && [ "$GUARD_RAILS_STATUS" != "pass" ]; then
+          echo ""
+          echo "🚨 Strict mode: failing due to guard rail violations"
+          exit 1
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 📊 Guard Rails Report
+      shell: bash
+      run: |
+        echo "::group::📊 Guard Rails Report"
+        echo ""
+        echo "## 🛡️ FSL Continuum Guard Rails Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Input Validation: `${{ inputs.enable-input-validation }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- State Validation: `${{ inputs.enable-state-validation }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Circuit Breaker: `${{ inputs.enable-circuit-breaker }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Timeout Management: `${{ inputs.enable-timeout-management }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Resource Limiting: `${{ inputs.enable-resource-limiting }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Strict Mode: `${{ inputs.strict-mode }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Guard Rails Status:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Overall: `${{ steps.summary.outputs.guard-rails-status }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Input Validation: `${{ steps.summary.outputs.input-validation-status }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- State Validation: `${{ steps.summary.outputs.state-validation-status }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Circuit Breaker: `${{ steps.summary.outputs.circuit-breaker-status }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -n "${{ steps.summary.outputs.violations }}" ]; then
+          echo "**Violations:**" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.summary.outputs.violations }}" | sed 's/;/\n/g' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "**Context:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Workflow: `${{ github.workflow }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Job: `${{ github.job }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Actor: `${{ github.actor }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Repository: `${{ github.repository }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🛡️ *Comprehensive guard rails system for workflow protection*" >> $GITHUB_STEP_SUMMARY
+        echo ""
+        echo "✅ Guard rails report generated"
+        echo "::endgroup::"

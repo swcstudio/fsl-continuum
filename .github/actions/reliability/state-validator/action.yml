@@ -1,0 +1,482 @@
+name: 'FSL Reliability - State Validator'
+description: 'Comprehensive state integrity validation and corruption detection'
+author: 'FSL Continuum Reliability Team'
+branding:
+  icon: 'database'
+  color: 'purple'
+
+inputs:
+  state-file:
+    description: 'Path to state file to validate'
+    required: true
+  backup-state:
+    description: 'Create backup before validation'
+    required: false
+    default: 'true'
+    type: boolean
+  schema-file:
+    description: 'Path to JSON schema for validation'
+    required: false
+    type: string
+  strict-mode:
+    description: 'Fail on any validation errors'
+    required: false
+    default: 'true'
+    type: boolean
+  checksum-verification:
+    description: 'Verify file checksum integrity'
+    required: false
+    default: 'true'
+    type: boolean
+  semantic-validation:
+    description: 'Perform semantic business rule validation'
+    required: false
+    default: 'true'
+    type: boolean
+  max-state-size:
+    description: 'Maximum allowed state size in MB'
+    required: false
+    default: '100'
+    type: string
+
+outputs:
+  is-valid:
+    description: 'Whether the state passed validation'
+    value: ${{ steps.validate.outputs.is-valid }}
+  validation-errors:
+    description: 'List of validation errors found'
+    value: ${{ steps.validate.outputs.validation-errors }}
+  backup-created:
+    description: 'Whether a backup was created'
+    value: ${{ steps.backup.outputs.backup-created }}
+  checksum:
+    description: 'Current state file checksum'
+    value: ${{ steps.validate.outputs.checksum }}
+  state-size:
+    description: 'State file size in bytes'
+    value: ${{ steps.validate.outputs.state-size }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🔍 Initialize State Validation
+      id: init
+      shell: bash
+      run: |
+        echo "::group::🔍 Initializing State Validation"
+        
+        STATE_FILE="${{ inputs.state-file }}"
+        BACKUP_STATE="${{ inputs.backup-state }}"
+        SCHEMA_FILE="${{ inputs.schema-file }}"
+        STRICT_MODE="${{ inputs.strict-mode }}"
+        CHECKSUM_VERIFICATION="${{ inputs.checksum-verification }}"
+        SEMANTIC_VALIDATION="${{ inputs.semantic-validation }}"
+        MAX_STATE_SIZE="${{ inputs.max-state-size }}"
+        
+        echo "State File: $STATE_FILE"
+        echo "Backup State: $BACKUP_STATE"
+        echo "Schema File: $SCHEMA_FILE"
+        echo "Strict Mode: $STRICT_MODE"
+        echo "Checksum Verification: $CHECKSUM_VERIFICATION"
+        echo "Semantic Validation: $SEMANTIC_VALIDATION"
+        echo "Max State Size: ${MAX_STATE_SIZE}MB"
+        
+        # Create validation directory
+        mkdir -p .github/reliability/validation
+        mkdir -p .github/reliability/backups
+        
+        echo "✅ State validation initialized"
+        echo "::endgroup::"
+    
+    - name: 💾 Create State Backup
+      id: backup
+      if: inputs.backup-state == 'true'
+      shell: bash
+      run: |
+        echo "::group::💾 Creating State Backup"
+        
+        STATE_FILE="${{ inputs.state-file }}"
+        
+        BACKUP_CREATED="false"
+        
+        if [ -f "$STATE_FILE" ]; then
+          # Create backup with timestamp
+          TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
+          BACKUP_FILE=".github/reliability/backups/$(basename "$STATE_FILE")-$TIMESTAMP.json"
+          
+          # Copy state file to backup
+          cp "$STATE_FILE" "$BACKUP_FILE"
+          
+          # Create checksum of backup
+          BACKUP_CHECKSUM=$(sha256sum "$BACKUP_FILE" | cut -d' ' -f1)
+          echo "$BACKUP_CHECKSUM" > "${BACKUP_FILE}.sha256"
+          
+          echo "Backup created: $BACKUP_FILE"
+          echo "Backup checksum: $BACKUP_CHECKSUM"
+          
+          BACKUP_CREATED="true"
+        else
+          echo "State file not found, no backup created"
+        fi
+        
+        echo "backup-created=$BACKUP_CREATED" >> $GITHUB_OUTPUT
+        
+        if [ "$BACKUP_CREATED" = "true" ]; then
+          echo "✅ State backup created successfully"
+        else
+          echo "ℹ️ No backup created (state file not found)"
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 🔍 Load and Analyze State
+      id: load-state
+      shell: bash
+      run: |
+        echo "::group::🔍 Loading and Analyzing State"
+        
+        STATE_FILE="${{ inputs.state-file }}"
+        MAX_STATE_SIZE_BYTES=$((${{ inputs.max-state-size }} * 1024 * 1024))
+        
+        VALIDATION_ERRORS=""
+        IS_VALID="true"
+        STATE_SIZE=0
+        CHECKSUM=""
+        
+        # Check if state file exists
+        if [ ! -f "$STATE_FILE" ]; then
+          VALIDATION_ERRORS="$VALIDATION_ERRORS State file not found: $STATE_FILE;"
+          IS_VALID="false"
+        else
+          # Check file size
+          STATE_SIZE=$(stat -c%s "$STATE_FILE" 2>/dev/null || echo "0")
+          if [ "$STATE_SIZE" -gt "$MAX_STATE_SIZE_BYTES" ]; then
+            VALIDATION_ERRORS="$VALIDATION_ERRORS State file too large: $STATE_SIZE bytes (max: $MAX_STATE_SIZE_BYTES bytes);"
+            IS_VALID="false"
+          fi
+          
+          # Generate checksum
+          CHECKSUM=$(sha256sum "$STATE_FILE" 2>/dev/null | cut -d' ' -f1 || echo "invalid")
+          if [ "$CHECKSUM" = "invalid" ]; then
+            VALIDATION_ERRORS="$VALIDATION_ERRORS Cannot generate checksum for state file;"
+            IS_VALID="false"
+          fi
+          
+          # Check if file is readable JSON
+          if ! jq empty "$STATE_FILE" 2>/dev/null; then
+            VALIDATION_ERRORS="$VALIDATION_ERRORS State file is not valid JSON;"
+            IS_VALID="false"
+          fi
+        fi
+        
+        echo "is-valid=$IS_VALID" >> $GITHUB_OUTPUT
+        echo "validation-errors=$VALIDATION_ERRORS" >> $GITHUB_OUTPUT
+        echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+        echo "state-size=$STATE_SIZE" >> $GITHUB_OUTPUT
+        
+        echo "State file: $STATE_FILE"
+        echo "State size: $STATE_SIZE bytes"
+        echo "Checksum: $CHECKSUM"
+        echo "Initial validity: $IS_VALID"
+        
+        if [ -n "$VALIDATION_ERRORS" ]; then
+          echo "⚠️ Initial validation errors:"
+          echo "$VALIDATION_ERRORS" | tr ';' '\n' | sed 's/^/  - /'
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 📋 Schema Validation
+      id: schema-validation
+      if: inputs.schema-file != '' && steps.load-state.outputs.is-valid == 'true'
+      shell: bash
+      run: |
+        echo "::group::📋 Performing Schema Validation"
+        
+        STATE_FILE="${{ inputs.state-file }}"
+        SCHEMA_FILE="${{ inputs.schema-file }}"
+        
+        SCHEMA_ERRORS=""
+        
+        # Load schema
+        if [ ! -f "$SCHEMA_FILE" ]; then
+          SCHEMA_ERRORS="Schema file not found: $SCHEMA_FILE;"
+        else
+          # Validate schema syntax
+          if ! jq empty "$SCHEMA_FILE" 2>/dev/null; then
+            SCHEMA_ERRORS="Schema file is not valid JSON;"
+          else
+            # Validate state against schema
+            VALIDATION_RESULT=$(jq --argjson schema "$(cat "$SCHEMA_FILE")" '
+              try (
+                if (. | test($schema)) then
+                  {valid: true, errors: []}
+                else
+                  {valid: false, errors: ["Schema validation failed"]}
+                end
+              ) catch {
+                valid: false,
+                errors: ["Schema validation error: \(.error)"]
+              }
+            ' "$STATE_FILE" 2>/dev/null || echo '{"valid": false, "errors": ["Schema validation error"]}')
+            
+            SCHEMA_VALID=$(echo "$VALIDATION_RESULT" | jq -r '.valid')
+            SCHEMA_ERROR_LIST=$(echo "$VALIDATION_RESULT" | jq -r '.errors[]')
+            
+            if [ "$SCHEMA_VALID" != "true" ]; then
+              SCHEMA_ERRORS="$SCHEMA_ERROR_LIST"
+            fi
+          fi
+        fi
+        
+        if [ -n "$SCHEMA_ERRORS" ]; then
+          echo "❌ Schema validation failed:"
+          echo "$SCHEMA_ERRORS" | sed 's/^/  - /'
+          
+          if [ "${{ inputs.strict-mode }}" = "true" ]; then
+            echo "🚨 Strict mode: failing due to schema validation errors"
+            exit 1
+          fi
+        else
+          echo "✅ Schema validation passed"
+        fi
+        
+        echo "schema-errors=$SCHEMA_ERRORS" >> $GITHUB_OUTPUT
+        echo "::endgroup::"
+    
+    - name: 🔐 Checksum Verification
+      id: checksum-verification
+      if: inputs.checksum-verification == 'true' && steps.load-state.outputs.is-valid == 'true'
+      shell: bash
+      run: |
+        echo "::group::🔐 Verifying Checksum Integrity"
+        
+        STATE_FILE="${{ inputs.state-file }}"
+        CURRENT_CHECKSUM="${{ steps.load-state.outputs.checksum }}"
+        
+        CHECKSUM_ERRORS=""
+        
+        # Look for stored checksum
+        STORED_CHECKSUM=""
+        CHECKSUM_FILE=".github/reliability/validation/$(basename "$STATE_FILE").sha256"
+        
+        if [ -f "$CHECKSUM_FILE" ]; then
+          STORED_CHECKSUM=$(cat "$CHECKSUM_FILE")
+        fi
+        
+        # Verify checksum if we have a stored one
+        if [ -n "$STORED_CHECKSUM" ]; then
+          if [ "$CURRENT_CHECKSUM" != "$STORED_CHECKSUM" ]; then
+            CHECKSUM_ERRORS="Checksum mismatch: expected $STORED_CHECKSUM, got $CURRENT_CHECKSUM"
+            echo "❌ Checksum verification failed:"
+            echo "  Stored:   $STORED_CHECKSUM"
+            echo "  Current:  $CURRENT_CHECKSUM"
+            echo ""
+            echo "⚠️ This may indicate state corruption or unauthorized modification"
+            
+            if [ "${{ inputs.strict-mode }}" = "true" ]; then
+              echo "🚨 Strict mode: failing due to checksum mismatch"
+              exit 1
+            fi
+          else
+            echo "✅ Checksum verification passed"
+          fi
+        else
+          echo "ℹ️ No stored checksum found, saving current checksum"
+          echo "$CURRENT_CHECKSUM" > "$CHECKSUM_FILE"
+        fi
+        
+        echo "stored-checksum=$STORED_CHECKSUM" >> $GITHUB_OUTPUT
+        echo "checksum-errors=$CHECKSUM_ERRORS" >> $GITHUB_OUTPUT
+        
+        echo "::endgroup::"
+    
+    - name: 🧠 Semantic Validation
+      id: semantic-validation
+      if: inputs.semantic-validation == 'true' && steps.load-state.outputs.is-valid == 'true'
+      shell: bash
+      run: |
+        echo "::group::🧠 Performing Semantic Validation"
+        
+        STATE_FILE="${{ inputs.state-file }}"
+        SEMANTIC_ERRORS=""
+        
+        # Load state for semantic validation
+        STATE_CONTENT=$(cat "$STATE_FILE")
+        
+        # Validate FSL Continuum specific semantic rules
+        echo "🔍 Checking FSL Continuum semantic rules..."
+        
+        # Rule 1: Check for required fields
+        REQUIRED_FIELDS='["version", "spec", "initialized_at"]'
+        for field in $(echo "$REQUIRED_FIELDS" | jq -r '.[]'); do
+          if ! echo "$STATE_CONTENT" | jq -e ".$field" > /dev/null; then
+            SEMANTIC_ERRORS="$SEMANTIC_ERRORS Required field missing: $field;"
+          fi
+        done
+        
+        # Rule 2: Validate statistics structure
+        if echo "$STATE_CONTENT" | jq -e '.statistics' > /dev/null; then
+          STATS_FIELDS='["total_continuum_runs", "successful_runs", "failed_runs"]'
+          for field in $(echo "$STATS_FIELDS" | jq -r '.[]'); do
+            if ! echo "$STATE_CONTENT" | jq -e ".statistics.$field" > /dev/null; then
+              SEMANTIC_ERRORS="$SEMANTIC_ERRORS Statistics field missing: $field;"
+            fi
+          done
+          
+          # Rule 3: Check logical consistency
+          TOTAL_RUNS=$(echo "$STATE_CONTENT" | jq -r '.statistics.total_continuum_runs // 0')
+          SUCCESS_RUNS=$(echo "$STATE_CONTENT" | jq -r '.statistics.successful_runs // 0')
+          FAILED_RUNS=$(echo "$STATE_CONTENT" | jq -r '.statistics.failed_runs // 0')
+          
+          CALCULATED_TOTAL=$((SUCCESS_RUNS + FAILED_RUNS))
+          if [ "$TOTAL_RUNS" -ne "$CALCULATED_TOTAL" ]; then
+            SEMANTIC_ERRORS="$SEMANTIC_ERRORS Statistics inconsistency: total_runs ($TOTAL_RUNS) != successful_runs ($SUCCESS_RUNS) + failed_runs ($FAILED_RUNS);"
+          fi
+        fi
+        
+        # Rule 4: Validate timestamp format
+        if echo "$STATE_CONTENT" | jq -e '.initialized_at' > /dev/null; then
+          INIT_TIMESTAMP=$(echo "$STATE_CONTENT" | jq -r '.initialized_at')
+          if ! date -d "$INIT_TIMESTAMP" > /dev/null 2>&1; then
+            SEMANTIC_ERRORS="$SEMANTIC_ERRORS Invalid timestamp format for initialized_at: $INIT_TIMESTAMP;"
+          fi
+        fi
+        
+        # Rule 5: Check for negative values in statistics
+        if echo "$STATE_CONTENT" | jq -e '.statistics' > /dev/null; then
+          NEGATIVE_STATS=$(echo "$STATE_CONTENT" | jq -r '.statistics | to_entries[] | select(.value < 0) | .key' | tr '\n' ',' | sed 's/,$//')
+          if [ -n "$NEGATIVE_STATS" ]; then
+            SEMANTIC_ERRORS="$SEMANTIC_ERRORS Negative values found in statistics: $NEGATIVE_STATS;"
+          fi
+        fi
+        
+        # Rule 6: Validate terminal velocity metrics
+        if echo "$STATE_CONTENT" | jq -e '.terminal_velocity_metrics' > /dev/null; then
+          TV_METRICS=$(echo "$STATE_CONTENT" | jq -r '.terminal_velocity_metrics')
+          TV_FIELDS='["context_switches_per_day", "deployment_frequency_per_day", "lead_time_hours", "time_to_recovery_minutes"]'
+          
+          for field in $(echo "$TV_FIELDS" | jq -r '.[]'); do
+            if ! echo "$STATE_CONTENT" | jq -e ".terminal_velocity_metrics.$field" > /dev/null; then
+              SEMANTIC_ERRORS="$SEMANTIC_ERRORS Terminal velocity metric missing: $field;"
+            fi
+          done
+        fi
+        
+        if [ -n "$SEMANTIC_ERRORS" ]; then
+          echo "❌ Semantic validation failed:"
+          echo "$SEMANTIC_ERRORS" | tr ';' '\n' | sed 's/^/  - /'
+          
+          if [ "${{ inputs.strict-mode }}" = "true" ]; then
+            echo "🚨 Strict mode: failing due to semantic validation errors"
+            exit 1
+          fi
+        else
+          echo "✅ Semantic validation passed"
+        fi
+        
+        echo "semantic-errors=$SEMANTIC_ERRORS" >> $GITHUB_OUTPUT
+        
+        echo "::endgroup::"
+    
+    - name: ✅ Final Validation
+      id: validate
+      shell: bash
+      run: |
+        echo "::group::✅ Final Validation"
+        
+        # Collect all validation results
+        INITIAL_VALID="${{ steps.load-state.outputs.is-valid }}"
+        INITIAL_ERRORS="${{ steps.load-state.outputs.validation-errors }}"
+        SCHEMA_ERRORS="${{ steps.schema-validation.outputs.schema-errors || '' }}"
+        CHECKSUM_ERRORS="${{ steps.checksum-verification.outputs.checksum-errors || '' }}"
+        SEMANTIC_ERRORS="${{ steps.semantic-validation.outputs.semantic-errors || '' }}"
+        
+        # Combine all errors
+        ALL_ERRORS="$INITIAL_ERRORS"
+        [ -n "$SCHEMA_ERRORS" ] && ALL_ERRORS="$ALL_ERRORS Schema: $SCHEMA_ERRORS;"
+        [ -n "$CHECKSUM_ERRORS" ] && ALL_ERRORS="$ALL_ERRORS Checksum: $CHECKSUM_ERRORS;"
+        [ -n "$SEMANTIC_ERRORS" ] && ALL_ERRORS="$ALL_ERRORS Semantic: $SEMANTIC_ERRORS;"
+        
+        # Determine final validity
+        FINAL_VALID="$INITIAL_VALID"
+        if [ -n "$ALL_ERRORS" ] && [ "${{ inputs.strict-mode }}" = "true" ]; then
+          FINAL_VALID="false"
+        fi
+        
+        echo "is-valid=$FINAL_VALID" >> $GITHUB_OUTPUT
+        echo "validation-errors=$ALL_ERRORS" >> $GITHUB_OUTPUT
+        echo "checksum=${{ steps.load-state.outputs.checksum }}" >> $GITHUB_OUTPUT
+        echo "state-size=${{ steps.load-state.outputs.state-size }}" >> $GITHUB_OUTPUT
+        
+        # Generate validation report
+        VALIDATION_REPORT=$(cat << EOF
+        {
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "state_file": "${{ inputs.state-file }}",
+          "is_valid": $FINAL_VALID,
+          "checksum": "${{ steps.load-state.outputs.checksum }}",
+          "state_size_bytes": ${{ steps.load-state.outputs.state-size }},
+          "validation_errors": "$ALL_ERRORS",
+          "backup_created": "${{ steps.backup.outputs.backup-created }}",
+          "strict_mode": "${{ inputs.strict-mode }}",
+          "schema_file": "${{ inputs.schema-file }}",
+          "checksum_verification": "${{ inputs.checksum-verification }}",
+          "semantic_validation": "${{ inputs.semantic-validation }}"
+        }
+        EOF
+        )
+        
+        # Store validation report
+        echo "$VALIDATION_REPORT" > ".github/reliability/validation/validation-report-$(date +%Y%m%d-%H%M%S).json"
+        
+        echo ""
+        echo "🔍 Final Validation Summary"
+        echo "=========================="
+        echo "State File: ${{ inputs.state-file }}"
+        echo "State Size: ${{ steps.load-state.outputs.state-size }} bytes"
+        echo "Checksum: ${{ steps.load-state.outputs.checksum }}"
+        echo "Backup Created: ${{ steps.backup.outputs.backup-created }}"
+        echo "Final Valid: $FINAL_VALID"
+        
+        if [ -n "$ALL_ERRORS" ]; then
+          echo ""
+          echo "⚠️ Validation Issues Found:"
+          echo "$ALL_ERRORS" | tr ';' '\n' | sed 's/^/  - /'
+        else
+          echo ""
+          echo "✅ All validations passed successfully"
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 📊 State Validation Report
+      shell: bash
+      run: |
+        echo "::group::📊 State Validation Report"
+        echo ""
+        echo "## 🔍 State Validation Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "- State File: `${{ inputs.state-file }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Strict Mode: `${{ inputs.strict-mode }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Backup State: `${{ inputs.backup-state }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Max Size: `${{ inputs.max-state-size }}MB`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Results:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Is Valid: `${{ steps.validate.outputs.is-valid }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- State Size: `${{ steps.validate.outputs.state-size }}` bytes" >> $GITHUB_STEP_SUMMARY
+        echo "- Checksum: `${{ steps.validate.outputs.checksum }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Backup Created: `${{ steps.backup.outputs.backup-created }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -n "${{ steps.validate.outputs.validation-errors }}" ]; then
+          echo "**Validation Issues:**" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.validate.outputs.validation-errors }}" | tr ';' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🔍 *Comprehensive state integrity validation with corruption detection*" >> $GITHUB_STEP_SUMMARY
+        echo ""
+        echo "✅ State validation report generated"
+        echo "::endgroup::"

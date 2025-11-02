@@ -1,0 +1,482 @@
+# Pareto-Lang XML Transformation Example
+# Demonstrates Pareto-Lang semantic data with XML transformation wrapping
+
+# Pareto-Lang specification version
+version: "1.0.0-fsl-integration"
+spec: "PARETO-SEMANTIC-001"
+description: "Pareto-Lang XML transformation example for FSL Continuum integration"
+
+# XML Transformation Configuration
+xml_transformation:
+  enabled: true
+  wrapper_tag: "pareto-lang-semantic-data"
+  schema_version: "1.0.0-pareto-xml"
+  preserve_optimization: true
+  context_aware: true
+
+# Pareto-Lang Semantic Optimizations with XML support
+optimizations:
+  - name: "pareto_optimization_xml_01"
+    type: "pareto"
+    target: "efficiency_maximization"
+    ai_enhanced: true
+    xml_wrapped: true
+    constraints:
+      - type: "resource_constraint"
+        operator: "<="
+        value: "max_resource_usage"
+        pareto_enforced: true
+        xml_preserved: true
+      - type: "performance_constraint"
+        operator: ">="
+        value: "min_performance_score"
+        pareto_enforced: true
+        xml_preserved: true
+    efficiency: 0.92
+    metadata:
+      ai_monitored: true
+      context_aware: true
+      learning_enabled: true
+      xml_transformation_applied: true
+      xml_schema_version: "1.0.0-pareto-xml"
+      
+  - name: "resource_optimization_xml_01"
+    type: "resource"
+    target: "utilization_optimization"
+    ai_enhanced: true
+    xml_wrapped: true
+    constraints:
+      - type: "capacity_constraint"
+        operator: "<="
+        value: "max_capacity"
+        pareto_enforced: true
+        xml_preserved: true
+      - type: "throughput_constraint"
+        operator: ">="
+        value: "min_throughput"
+        pareto_enforced: true
+        xml_preserved: true
+    efficiency: 0.88
+    metadata:
+      ai_monitored: true
+      context_aware: true
+      learning_enabled: true
+      xml_transformation_applied: true
+      xml_schema_version: "1.0.0-pareto-xml"
+      
+  - name: "performance_optimization_xml_01"
+    type: "performance"
+    target: "speed_optimization"
+    ai_enhanced: true
+    xml_wrapped: true
+    constraints:
+      - type: "latency_constraint"
+        operator: "<="
+        value: "max_latency"
+        pareto_enforced: true
+        xml_preserved: true
+      - type: "throughput_constraint"
+        operator: ">="
+        value: "min_throughput"
+        pareto_enforced: true
+        xml_preserved: true
+    efficiency: 0.95
+    metadata:
+      ai_monitored: true
+      context_aware: true
+      learning_enabled: true
+      xml_transformation_applied: true
+      xml_schema_version: "1.0.0-pareto-xml"
+
+# Pareto-Lang Semantic Resources with XML support
+resources:
+  - name: "compute_resource_xml_01"
+    type: "compute"
+    capacity: 100
+    utilization: 0.85
+    optimization: "pareto"
+    ai_monitored: true
+    xml_wrapped: true
+    metadata:
+      ai_monitored: true
+      context_aware: true
+      learning_enabled: true
+      xml_transformation_applied: true
+      xml_schema_version: "1.0.0-pareto-xml"
+      
+  - name: "storage_resource_xml_01"
+    type: "storage"
+    capacity: 1000
+    utilization: 0.78
+    optimization: "pareto"
+    ai_monitored: true
+    xml_wrapped: true
+    metadata:
+      ai_monitored: true
+      context_aware: true
+      learning_enabled: true
+      xml_transformation_applied: true
+      xml_schema_version: "1.0.0-pareto-xml"
+      
+  - name: "network_resource_xml_01"
+    type: "network"
+    capacity: 10000
+    utilization: 0.92
+    optimization: "pareto"
+    ai_monitored: true
+    xml_wrapped: true
+    metadata:
+      ai_monitored: true
+      context_aware: true
+      learning_enabled: true
+      xml_transformation_applied: true
+      xml_schema_version: "1.0.0-pareto-xml"
+
+# Pareto-Lang Semantic Constraints with XML support
+constraints:
+  - name: "pareto_efficiency_constraint_xml_01"
+    type: "optimization"
+    scope: ["pareto_optimization_xml_01", "resource_optimization_xml_01", "performance_optimization_xml_01"]
+    pareto_optimal: true
+    xml_wrapped: true
+    conditions:
+      - variable: "optimization.efficiency"
+        operator: ">="
+        value: 0.80
+        pareto_metric: "pareto_efficiency"
+        logical_operator: "AND"
+        xml_preserved: true
+      - variable: "optimization.ai_enhanced"
+        operator: "="
+        value: true
+        pareto_metric: "ai_integration"
+        logical_operator: "AND"
+        xml_preserved: true
+      - variable: "optimization.xml_wrapped"
+        operator: "="
+        value: true
+        pareto_metric: "xml_transformation"
+        logical_operator: "AND"
+        xml_preserved: true
+    ai_monitored: true
+    auto_enforced: true
+    xml_preserved: true
+    
+  - name: "pareto_resource_constraint_xml_01"
+    type: "resource"
+    scope: ["compute_resource_xml_01", "storage_resource_xml_01", "network_resource_xml_01"]
+    pareto_optimal: true
+    xml_wrapped: true
+    conditions:
+      - variable: "resource.utilization"
+        operator: ">"
+        value: 0.70
+        pareto_metric: "resource_utilization"
+        logical_operator: "AND"
+        xml_preserved: true
+      - variable: "resource.optimization"
+        operator: "="
+        value: "pareto"
+        pareto_metric: "optimization_strategy"
+        logical_operator: "AND"
+        xml_preserved: true
+      - variable: "resource.xml_wrapped"
+        operator: "="
+        value: true
+        pareto_metric: "xml_transformation"
+        logical_operator: "AND"
+        xml_preserved: true
+    ai_monitored: true
+    auto_enforced: true
+    xml_preserved: true
+    
+  - name: "pareto_constraint_xml_01"
+    type: "system"
+    scope: ["optimization", "resource", "performance"]
+    pareto_optimal: true
+    xml_wrapped: true
+    conditions:
+      - variable: "system.efficiency"
+        operator: ">="
+        value: 0.85
+        pareto_metric: "system_efficiency"
+        logical_operator: "AND"
+        xml_preserved: true
+      - variable: "system.pareto_optimal"
+        operator: "="
+        value: true
+        pareto_metric: "pareto_optimality"
+        logical_operator: "AND"
+        xml_preserved: true
+      - variable: "system.xml_transformation"
+        operator: "="
+        value: true
+        pareto_metric: "xml_transformation"
+        logical_operator: "AND"
+        xml_preserved: true
+    ai_monitored: true
+    auto_enforced: true
+    xml_preserved: true
+
+# Pareto-Lang AI Integration with XML support
+ai_integration:
+  optimization_analysis: true
+  pareto_efficiency: true
+  context_awareness: true
+  learning: true
+  prediction: true
+  xml_transformation: true
+  xml_preservation: true
+  
+  ai_models:
+    optimization_analyzer: "genetic-algorithm"
+    efficiency_calculator: "neural-network"
+    resource_optimizer: "reinforcement-learning"
+    constraint_validator: "rule-based-ai"
+    xml_transformation_processor: "xml-aware-ai-processor"
+    
+  ai_features:
+    pareto_optimization_discovery: true
+    efficiency_pattern_recognition: true
+    resource_allocation_optimization: true
+    constraint_learning_adaptation: true
+    xml_transformation_optimization: true
+    xml_optimization_preservation: true
+    
+  ai_learning:
+    federated_learning: true
+    continuous_learning: true
+    adaptation_learning: true
+    pattern_learning: true
+    xml_transformation_learning: true
+    
+  ai_optimization:
+    real_time_optimization: true
+    predictive_optimization: true
+    adaptive_optimization: true
+    performance_optimization: true
+    xml_transformation_optimization: true
+
+# Pareto-Lang Integration Configuration with XML support
+fsl_continuum_integration:
+  bridge_enabled: true
+  state_management: true
+  context_preservation: true
+  performance_monitoring: true
+  xml_transformation: true
+  
+  integration_settings:
+    context_intelligence_integration: true
+    consciousness_routing: true
+    performance_metrics: true
+    neural_field_integration: true
+    xml_wrapper_integration: true
+    xml_optimization_preservation: true
+    
+  data_connections:
+    pareto_to_context_intelligence: true
+    optimizations_to_consciousness: true
+    resources_to_neural_field: true
+    constraints_to_performance: true
+    pareto_xml_to_unified_xml: true
+    xml_transformation_integration: true
+    
+  ai_integration:
+    ai_bridge_enabled: true
+    ai_learning_integration: true
+    ai_optimization_integration: true
+    ai_prediction_integration: true
+    xml_transformation_ai: true
+    xml_optimization_ai: true
+
+# Pareto-Lang Performance Metrics with XML support
+performance_metrics:
+  pareto_efficiency: 0.92
+  resource_utilization: 0.85
+  optimization_effectiveness: 0.88
+  constraint_satisfaction: 0.95
+  ai_integration_score: 0.89
+  xml_transformation_score: 0.91
+  xml_preservation_score: 0.93
+  
+  performance_trends:
+    efficiency_trend: "improving"
+    utilization_trend: "stable"
+    optimization_trend: "improving"
+    satisfaction_trend: "stable"
+    xml_transformation_trend: "improving"
+    xml_preservation_trend: "stable"
+    
+  ai_performance:
+    ai_optimization_factor: 1.15
+    ai_efficiency_improvement: 0.08
+    ai_learning_rate: 0.02
+    ai_prediction_accuracy: 0.87
+    ai_xml_optimization_factor: 1.12
+    ai_xml_preservation_accuracy: 0.94
+    
+  benchmark_comparisons:
+    baseline_efficiency: 0.78
+    current_efficiency: 0.92
+    efficiency_improvement: 0.18
+    baseline_xml_transformation: 0.80
+    current_xml_transformation: 0.91
+    xml_transformation_improvement: 0.11
+    benchmark_met: true
+
+# Pareto-Lang Learning and Adaptation with XML support
+learning_adaptation:
+  learning_enabled: true
+  adaptation_enabled: true
+  pattern_recognition: true
+  performance_learning: true
+  xml_transformation_learning: true
+  
+  learning_objectives:
+    optimization_pattern_learning: true
+    resource_utilization_learning: true
+    constraint_satisfaction_learning: true
+    efficiency_improvement_learning: true
+    xml_transformation_pattern_learning: true
+    xml_optimization_preservation_learning: true
+    
+  adaptation_strategies:
+    reactive_adaptation: true
+    proactive_adaptation: true
+    predictive_adaptation: true
+    autonomous_adaptation: true
+    xml_transformation_adaptation: true
+    xml_optimization_adaptation: true
+    
+  learning_metrics:
+    learning_rate: 0.02
+    adaptation_speed: 0.85
+    pattern_recognition_accuracy: 0.91
+    performance_improvement_rate: 0.05
+    xml_transformation_learning_rate: 0.03
+    xml_optimization_preservation_accuracy: 0.92
+    
+  adaptation_outcomes:
+    efficiency_improvement: 0.03
+    utilization_optimization: 0.02
+    optimization_effectiveness: 0.04
+    constraint_satisfaction_improvement: 0.01
+    xml_transformation_improvement: 0.02
+    xml_optimization_preservation_improvement: 0.01
+
+# Pareto-Lang Context Awareness with XML support
+context_awareness:
+  context_enabled: true
+  context_analysis: true
+  context_adaptation: true
+  context_preservation: true
+  xml_transformation_context: true
+  
+  context_types:
+    operational_context: true
+    environmental_context: true
+    performance_context: true
+    resource_context: true
+    xml_transformation_context: true
+    
+  context_analysis:
+    context_pattern_recognition: true
+    context_impact_analysis: true
+    context_correlation_analysis: true
+    context_prediction: true
+    xml_transformation_context_analysis: true
+    
+  context_adaptation:
+    context_sensitive_optimization: true
+    context_aware_resource_allocation: true
+    context_driven_constraint_adjustment: true
+    context_based_performance_tuning: true
+    context_aware_xml_transformation: true
+    
+  context_preservation:
+    context_state_management: true
+    context_history_tracking: true
+    context_recovery_mechanisms: true
+    context_continuity_assurance: true
+    xml_transformation_context_preservation: true
+
+# Pareto-Lang XML Transformation Metadata
+xml_transformation_metadata:
+  transformation_applied: true
+  xml_schema_version: "1.0.0-pareto-xml"
+  transformation_timestamp: "2025-01-22T12:00:00Z"
+  xml_preservation: true
+  optimization_preservation: true
+  context_preservation: true
+  ai_enhancement: true
+  performance_optimization: true
+  
+  transformation_settings:
+    xml_wrapper_tag: "pareto-lang-semantic-data"
+    xml_attributes: ["version", "spec", "timestamp", "language"]
+    xml_structure: {
+      "metadata": true,
+      "transformations": true,
+      "pareto-lang-content": true
+    }
+    validation_rules: {
+      "xml_structure_validation": true,
+      "optimization_preservation_validation": true,
+      "transformation_completeness_validation": true
+    }
+    
+  performance_metrics:
+    transformation_time: 0.135
+    xml_size_ratio: 1.18
+    optimization_preservation_ratio: 1.00
+    context_preservation_ratio: 1.00
+    ai_optimization_factor: 1.12
+    xml_transformation_efficiency: 0.89
+
+# Pareto-Lang XML Transformation Validation
+xml_transformation_validation:
+  validation_applied: true
+  validation_timestamp: "2025-01-22T12:00:00Z"
+  validation_result: "passed"
+  
+  structure_validation:
+    xml_structure_valid: true
+    required_attributes_present: true
+    required_elements_present: true
+    xml_schema_compliance: true
+    
+  optimization_validation:
+    optimization_meaning_preserved: true
+    pareto_optimal_preserved: true
+    efficiency_preserved: true
+    resource_preservation_preserved: true
+    
+  transformation_validation:
+    round_trip_transformation_valid: true
+    xml_wrapping_valid: true
+    xml_unwrapping_valid: true
+    transformation_completeness: true
+
+# Pareto-Lang XML Transformation Context
+xml_transformation_context:
+  context_applied: true
+  context_awareness: true
+  context_preservation: true
+  
+  context_types:
+    operational_context: true
+    xml_transformation_context: true
+    optimization_preservation_context: true
+    pareto_optimal_context: true
+    
+  context_analysis:
+    context_pattern_recognition: true
+    context_impact_analysis: true
+    context_correlation_analysis: true
+    context_prediction: true
+    
+  context_adaptation:
+    context_sensitive_xml_wrapping: true
+    context_aware_optimization_preservation: true
+    context_driven_pareto_optimal_adjustment: true
+    context_based_performance_tuning: true

@@ -1,0 +1,455 @@
+name: 'FSL Reliability - Error Handler'
+description: 'Comprehensive error classification, handling, and recovery system'
+author: 'FSL Continuum Reliability Team'
+branding:
+  icon: 'alert-triangle'
+  color: 'red'
+
+inputs:
+  error-context:
+    description: 'Error context information (JSON string)'
+    required: false
+    type: string
+  error-type:
+    description: 'Pre-classified error type (auto if not provided)'
+    required: false
+    default: 'auto'
+    type: string
+  error-message:
+    description: 'Error message to classify and handle'
+    required: false
+    type: string
+  exit-code:
+    description: 'Exit code from failed operation'
+    required: false
+    default: '1'
+    type: string
+  operation:
+    description: 'Operation type that failed'
+    required: false
+    default: 'unknown'
+    type: string
+  recovery-strategy:
+    description: 'Specific recovery strategy (auto if not provided)'
+    required: false
+    default: 'auto'
+    type: string
+  create-issue:
+    description: 'Create GitHub issue for critical errors'
+    required: false
+    default: 'false'
+    type: boolean
+  notify-slack:
+    description: 'Send Slack notification for errors'
+    required: false
+    default: 'true'
+    type: boolean
+
+outputs:
+  error-category:
+    description: 'Classified error category'
+    value: ${{ steps.classify.outputs.error-category }}
+  error-severity:
+    description: 'Error severity level'
+    value: ${{ steps.classify.outputs.error-severity }}
+  recovery-action:
+    description: 'Recovery action to take'
+    value: ${{ steps.handle.outputs.recovery-action }}
+  should-retry:
+    description: 'Whether the operation should be retried'
+    value: ${{ steps.handle.outputs.should-retry }}
+  issue-created:
+    description: 'Whether a GitHub issue was created'
+    value: ${{ steps.handle.outputs.issue-created }}
+  notification-sent:
+    description: 'Whether notification was sent'
+    value: ${{ steps.handle.outputs.notification-sent }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🚨 Initialize Error Handler
+      id: init
+      shell: bash
+      run: |
+        echo "::group::🚨 Initializing Error Handler"
+        
+        ERROR_CONTEXT="${{ inputs.error-context }}"
+        ERROR_TYPE="${{ inputs.error-type }}"
+        ERROR_MESSAGE="${{ inputs.error-message }}"
+        EXIT_CODE="${{ inputs.exit-code }}"
+        OPERATION="${{ inputs.operation }}"
+        RECOVERY_STRATEGY="${{ inputs.recovery-strategy }}"
+        CREATE_ISSUE="${{ inputs.create-issue }}"
+        NOTIFY_SLACK="${{ inputs.notify-slack }}"
+        
+        echo "Error Type: $ERROR_TYPE"
+        echo "Error Message: $ERROR_MESSAGE"
+        echo "Exit Code: $EXIT_CODE"
+        echo "Operation: $OPERATION"
+        echo "Recovery Strategy: $RECOVERY_STRATEGY"
+        echo "Create Issue: $CREATE_ISSUE"
+        echo "Notify Slack: $NOTIFY_SLACK"
+        
+        # Create error handler directory
+        mkdir -p .github/reliability/errors
+        mkdir -p .github/reliability/incidents
+        
+        # Initialize error context if not provided
+        if [ -z "$ERROR_CONTEXT" ]; then
+          ERROR_CONTEXT=$(cat << EOF
+          {
+            "error_type": "$ERROR_TYPE",
+            "error_message": "$ERROR_MESSAGE",
+            "exit_code": $EXIT_CODE,
+            "operation": "$OPERATION",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow": "${{ github.workflow }}",
+            "run_id": "${{ github.run_id }}",
+            "job": "${{ github.job }}",
+            "actor": "${{ github.actor }}",
+            "repository": "${{ github.repository }}"
+          }
+        EOF
+        )
+        fi
+        
+        echo "error-context-data=$ERROR_CONTEXT" >> $GITHUB_OUTPUT
+        echo "✅ Error handler initialized"
+        echo "::endgroup::"
+    
+    - name: 🔍 Classify Error
+      id: classify
+      shell: bash
+      run: |
+        echo "::group::🔍 Classifying Error"
+        
+        ERROR_CONTEXT="${{ steps.init.outputs.error-context-data }}"
+        PREDEFINED_TYPE="${{ inputs.error-type }}"
+        ERROR_MESSAGE="${{ inputs.error-message }}"
+        EXIT_CODE="${{ inputs.exit-code }}"
+        OPERATION="${{ inputs.operation }}"
+        
+        # Extract error information from context
+        ERROR_TYPE=$(echo "$ERROR_CONTEXT" | jq -r '.error_type // "unknown"')
+        
+        # Auto-classify if not predefined
+        if [ "$PREDEFINED_TYPE" = "auto" ]; then
+          # Classification logic based on patterns
+          if [ "$EXIT_CODE" = "124" ]; then
+            ERROR_TYPE="timeout"
+          elif echo "$ERROR_MESSAGE" | grep -qi "network\|connection\|dns\|host"; then
+            ERROR_TYPE="network_failure"
+          elif echo "$ERROR_MESSAGE" | grep -qi "5[0-9][0-9]\|internal\|server"; then
+            ERROR_TYPE="service_failure"
+          elif echo "$ERROR_MESSAGE" | grep -qi "4[0-9][0-9]\|client\|bad"; then
+            ERROR_TYPE="client_error"
+          elif echo "$ERROR_MESSAGE" | grep -qi "auth\|permission\|denied\|unauthorized"; then
+            ERROR_TYPE="authentication_error"
+          elif echo "$ERROR_MESSAGE" | grep -qi "rate.*limit\|too.*many\|throttle"; then
+            ERROR_TYPE="rate_limit"
+          elif echo "$ERROR_MESSAGE" | grep -qi "disk.*full\|memory\|resource"; then
+            ERROR_TYPE="resource_exhaustion"
+          elif echo "$ERROR_MESSAGE" | grep -qi "invalid.*input\|syntax\|parse"; then
+            ERROR_TYPE="validation_error"
+          elif echo "$ERROR_MESSAGE" | grep -qi "not.*found\|missing\|absent"; then
+            ERROR_TYPE="not_found"
+          elif echo "$ERROR_MESSAGE" | grep -qi "config\|setting\|environment"; then
+            ERROR_TYPE="configuration_error"
+          else
+            ERROR_TYPE="unknown"
+          fi
+        else
+          ERROR_TYPE="$PREDEFINED_TYPE"
+        fi
+        
+        # Determine error category and severity
+        ERROR_CATEGORY="unknown"
+        ERROR_SEVERITY="medium"
+        SHOULD_RETRY="false"
+        
+        case "$ERROR_TYPE" in
+          "timeout"|"network_failure"|"service_failure"|"rate_limit")
+            ERROR_CATEGORY="transient"
+            ERROR_SEVERITY="medium"
+            SHOULD_RETRY="true"
+            ;;
+          "authentication_error"|"configuration_error"|"validation_error")
+            ERROR_CATEGORY="configuration"
+            ERROR_SEVERITY="high"
+            SHOULD_RETRY="false"
+            ;;
+          "client_error"|"not_found")
+            ERROR_CATEGORY="business_logic"
+            ERROR_SEVERITY="medium"
+            SHOULD_RETRY="false"
+            ;;
+          "resource_exhaustion")
+            ERROR_CATEGORY="infrastructure"
+            ERROR_SEVERITY="critical"
+            SHOULD_RETRY="false"
+            ;;
+          "service_failure")
+            ERROR_CATEGORY="dependency"
+            ERROR_SEVERITY="high"
+            SHOULD_RETRY="true"
+            ;;
+        esac
+        
+        echo "error-category=$ERROR_CATEGORY" >> $GITHUB_OUTPUT
+        echo "error-severity=$ERROR_SEVERITY" >> $GITHUB_OUTPUT
+        echo "error-type=$ERROR_TYPE" >> $GITHUB_OUTPUT
+        echo "should-retry=$SHOULD_RETRY" >> $GITHUB_OUTPUT
+        
+        # Update error context with classification
+        UPDATED_CONTEXT=$(echo "$ERROR_CONTEXT" | jq \
+          --arg type "$ERROR_TYPE" \
+          --arg category "$ERROR_CATEGORY" \
+          --arg severity "$ERROR_SEVERITY" \
+          '.error_type = $type |
+           .error_category = $category |
+           .error_severity = $severity')
+        
+        echo "updated-context=$UPDATED_CONTEXT" >> $GITHUB_OUTPUT
+        
+        # Log classification
+        echo "📊 Error Classification:"
+        echo "  Type: $ERROR_TYPE"
+        echo "  Category: $ERROR_CATEGORY"
+        echo "  Severity: $ERROR_SEVERITY"
+        echo "  Should Retry: $SHOULD_RETRY"
+        
+        # Store classification for analysis
+        CLASSIFICATION_LOG=$(cat << EOF
+        {
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "error_type": "$ERROR_TYPE",
+          "error_category": "$ERROR_CATEGORY",
+          "error_severity": "$ERROR_SEVERITY",
+          "operation": "$OPERATION",
+          "exit_code": $EXIT_CODE,
+          "error_message": "$ERROR_MESSAGE"
+        }
+        EOF
+        )
+        
+        echo "$CLASSIFICATION_LOG" >> ".github/reliability/errors/classifications-$(date +%Y-%m-%d).json"
+        
+        echo "✅ Error classification completed"
+        echo "::endgroup::"
+    
+    - name: 🔧 Handle Error Recovery
+      id: handle
+      shell: bash
+      run: |
+        echo "::group::🔧 Handling Error Recovery"
+        
+        ERROR_CATEGORY="${{ steps.classify.outputs.error-category }}"
+        ERROR_SEVERITY="${{ steps.classify.outputs.error-severity }}"
+        ERROR_TYPE="${{ steps.classify.outputs.error-type }}"
+        OPERATION="${{ inputs.operation }}"
+        RECOVERY_STRATEGY="${{ inputs.recovery-strategy }}"
+        CREATE_ISSUE="${{ inputs.create-issue }}"
+        NOTIFY_SLACK="${{ inputs.notify-slack }}"
+        
+        UPDATED_CONTEXT="${{ steps.classify.outputs.updated-context }}"
+        
+        # Determine recovery action
+        RECOVERY_ACTION="unknown"
+        ISSUE_CREATED="false"
+        NOTIFICATION_SENT="false"
+        
+        # Apply specific recovery strategies
+        if [ "$RECOVERY_STRATEGY" != "auto" ]; then
+          RECOVERY_ACTION="$RECOVERY_STRATEGY"
+        else
+          case "$ERROR_CATEGORY" in
+            "transient")
+              RECOVERY_ACTION="retry_with_backoff"
+              ;;
+            "configuration")
+              RECOVERY_ACTION="manual_intervention"
+              ;;
+            "dependency")
+              RECOVERY_ACTION="check_service_health"
+              ;;
+            "business_logic")
+              RECOVERY_ACTION="skip_continue"
+              ;;
+            "infrastructure")
+              RECOVERY_ACTION="scale_resources"
+              ;;
+            *)
+              RECOVERY_ACTION="log_and_continue"
+              ;;
+          esac
+        fi
+        
+        # Create GitHub issue for critical errors
+        if [ "$CREATE_ISSUE" = "true" ] && ([ "$ERROR_SEVERITY" = "critical" ] || [ "$ERROR_SEVERITY" = "high" ]); then
+          echo "📝 Creating GitHub issue for error..."
+          
+          ISSUE_TITLE="🚨 ${ERROR_SEVERITY^} Error: $ERROR_TYPE in $OPERATION"
+          
+          ISSUE_BODY=$(cat << EOF
+        ## 🚨 Error Incident Report
+        
+        **Error Details:**
+        - **Type:** $ERROR_TYPE
+        - **Category:** $ERROR_CATEGORY
+        - **Severity:** $ERROR_SEVERITY
+        - **Operation:** $OPERATION
+        - **Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+        
+        **Context:**
+        \`\`\`json
+        $UPDATED_CONTEXT
+        \`\`\`
+        
+        **Recovery Action:**
+        - **Strategy:** $RECOVERY_ACTION
+        - **Recommended:** Automatic recovery if possible
+        
+        **Next Steps:**
+        1. Investigate root cause
+        2. Implement fix
+        3. Add preventive measures
+        4. Update error handling
+        
+        ---
+        
+        🏷️ *Automatically created by FSL Reliability Error Handler*
+        EOF
+        )
+          
+          # Create issue using GitHub CLI
+          if command -v gh &> /dev/null; then
+            gh issue create \
+              --title "$ISSUE_TITLE" \
+              --body "$ISSUE_BODY" \
+              --label "reliability,error,$ERROR_CATEGORY,$ERROR_SEVERITY" \
+              --repo "${{ github.repository }}" || true
+            ISSUE_CREATED="true"
+          fi
+        fi
+        
+        # Send Slack notification
+        if [ "$NOTIFY_SLACK" = "true" ] && [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+          echo "📢 Sending Slack notification..."
+          
+          SLACK_COLOR="warning"
+          case "$ERROR_SEVERITY" in
+            "critical") SLACK_COLOR="danger" ;;
+            "high") SLACK_COLOR="danger" ;;
+            "medium") SLACK_COLOR="warning" ;;
+            "low") SLACK_COLOR="good" ;;
+          esac
+          
+          SLACK_MESSAGE=$(cat << EOF
+        {
+          "attachments": [
+            {
+              "color": "$SLACK_COLOR",
+              "title": "🚨 FSL Continuum Error",
+              "fields": [
+                {
+                  "title": "Error Type",
+                  "value": "$ERROR_TYPE",
+                  "short": true
+                },
+                {
+                  "title": "Severity",
+                  "value": "$ERROR_SEVERITY",
+                  "short": true
+                },
+                {
+                  "title": "Operation",
+                  "value": "$OPERATION",
+                  "short": true
+                },
+                {
+                  "title": "Recovery Action",
+                  "value": "$RECOVERY_ACTION",
+                  "short": true
+                },
+                {
+                  "title": "Repository",
+                  "value": "${{ github.repository }}",
+                  "short": true
+                },
+                {
+                  "title": "Actor",
+                  "value": "${{ github.actor }}",
+                  "short": true
+                }
+              ],
+              "footer": "FSL Reliability",
+              "ts": $(date +%s)
+            }
+          ]
+        }
+        EOF
+        )
+          
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-Type: application/json' \
+            -d "$SLACK_MESSAGE" || true
+          NOTIFICATION_SENT="true"
+        fi
+        
+        # Log recovery action
+        RECOVERY_LOG=$(cat << EOF
+        {
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "error_type": "$ERROR_TYPE",
+          "error_category": "$ERROR_CATEGORY",
+          "error_severity": "$ERROR_SEVERITY",
+          "recovery_action": "$RECOVERY_ACTION",
+          "issue_created": $ISSUE_CREATED,
+          "notification_sent": $NOTIFICATION_SENT,
+          "operation": "$OPERATION"
+        }
+        EOF
+        )
+        
+        echo "$RECOVERY_LOG" >> ".github/reliability/errors/recovery-$(date +%Y-%m-%d).json"
+        
+        echo "recovery-action=$RECOVERY_ACTION" >> $GITHUB_OUTPUT
+        echo "issue-created=$ISSUE_CREATED" >> $GITHUB_OUTPUT
+        echo "notification-sent=$NOTIFICATION_SENT" >> $GITHUB_OUTPUT
+        
+        echo "🔧 Recovery Action: $RECOVERY_ACTION"
+        echo "📝 Issue Created: $ISSUE_CREATED"
+        echo "📢 Notification Sent: $NOTIFICATION_SENT"
+        
+        echo "✅ Error recovery handling completed"
+        echo "::endgroup::"
+    
+    - name: 📊 Error Handler Report
+      shell: bash
+      run: |
+        echo "::group::📊 Error Handler Report"
+        echo ""
+        echo "## 🚨 Error Handler Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Error Classification:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Type: `${{ steps.classify.outputs.error-type }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Category: `${{ steps.classify.outputs.error-category }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Severity: `${{ steps.classify.outputs.error-severity }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Should Retry: `${{ steps.classify.outputs.should-retry }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Recovery Actions:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Strategy: `${{ steps.handle.outputs.recovery-action }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Issue Created: `${{ steps.handle.outputs.issue-created }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Notification Sent: `${{ steps.handle.outputs.notification-sent }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Context:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Operation: `${{ inputs.operation }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Exit Code: `${{ inputs.exit-code }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Repository: `${{ github.repository }}`" >> $GITHUB_STEP_SUMMARY
+        echo "- Actor: `${{ github.actor }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🚨 *Comprehensive error handling with automated recovery*" >> $GITHUB_STEP_SUMMARY
+        echo ""
+        echo "✅ Error handler report generated"
+        echo "::endgroup::"

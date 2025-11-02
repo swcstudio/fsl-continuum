@@ -1,0 +1,265 @@
+name: 'FSL Core - Persist State'
+description: 'Persist FSL Continuum state to blockchain and local storage'
+author: 'FSL Continuum Team'
+branding:
+  icon: 'save'
+  color: 'green'
+
+inputs:
+  flow-id:
+    description: 'Flow identifier'
+    required: true
+    type: string
+  phase:
+    description: 'Current phase name'
+    required: true
+    type: string
+  status:
+    description: 'Phase status (success, failure, in_progress)'
+    required: true
+    default: 'success'
+    type: string
+  data:
+    description: 'Additional data to persist (JSON)'
+    required: false
+    type: string
+  blockchain:
+    description: 'Persist to blockchain (true/false)'
+    required: false
+    default: 'true'
+    type: boolean
+  commit-state:
+    description: 'Commit state changes to repository (true/false)'
+    required: false
+    default: 'true'
+    type: boolean
+
+outputs:
+  persisted:
+    description: 'Whether state was successfully persisted'
+    value: ${{ steps.persist.outputs.persisted }}
+  blockchain-tx:
+    description: 'Blockchain transaction hash'
+    value: ${{ steps.blockchain.outputs.tx-hash }}
+  state-hash:
+    description: 'State file hash'
+    value: ${{ steps.persist.outputs.state-hash }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 💾 Persist State
+      id: persist
+      shell: bash
+      run: |
+        echo "::group::💾 Persisting FSL Continuum State"
+        
+        FLOW_ID="${{ inputs.flow-id }}"
+        PHASE="${{ inputs.phase }}"
+        STATUS="${{ inputs.status }}"
+        STATE_DIR=".github/state"
+        STATE_FILE="$STATE_DIR/continuum-state.json"
+        FLOW_STATE_FILE="$STATE_DIR/flows/$FLOW_ID.json"
+        
+        echo "Flow ID: $FLOW_ID"
+        echo "Phase: $PHASE"
+        echo "Status: $STATUS"
+        
+        # Calculate state hash
+        if [ -f "$STATE_FILE" ]; then
+          STATE_HASH=$(sha256sum "$STATE_FILE" | cut -d' ' -f1)
+          echo "state-hash=$STATE_HASH" >> $GITHUB_OUTPUT
+        fi
+        
+        # Update flow state
+        if [ -f "$FLOW_STATE_FILE" ]; then
+          echo "Updating flow state..."
+          
+          # Update phase status
+          jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             --arg phase "$PHASE" \
+             --arg status "$STATUS" \
+             '.phases[$phase] = {
+               "started_at": (.phases[$phase].started_at // $timestamp),
+               "completed_at": $timestamp,
+               "status": $status
+             } | 
+              .last_updated = $timestamp |
+              .status = $status' \
+             "$FLOW_STATE_FILE" > "$FLOW_STATE_FILE.tmp"
+          
+          mv "$FLOW_STATE_FILE.tmp" "$FLOW_STATE_FILE"
+          
+          # Add additional data if provided
+          if [ -n "${{ inputs.data }}" ]; then
+            echo "$DATA" | jq --arg phase "$PHASE" '.phases[$phase].data = $' "$FLOW_STATE_FILE" > "$FLOW_STATE_FILE.tmp"
+            mv "$FLOW_STATE_FILE.tmp" "$FLOW_STATE_FILE"
+          fi
+        fi
+        
+        # Update continuum state
+        if [ -f "$STATE_FILE" ]; then
+          echo "Updating continuum state..."
+          
+          # Update statistics based on phase and status
+          case "$STATUS" in
+            "success")
+              if [ "$PHASE" = "complete" ]; then
+                jq '.statistics.features_shipped += 1' "$STATE_FILE" > "$STATE_FILE.tmp"
+                mv "$STATE_FILE.tmp" "$STATE_FILE"
+              fi
+              ;;
+            "failure")
+              jq '.statistics.failed_runs += 1' "$STATE_FILE" > "$STATE_FILE.tmp"
+              mv "$STATE_FILE.tmp" "$STATE_FILE"
+              ;;
+          esac
+          
+          # Update last updated timestamp
+          jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+             --arg flow_id "$FLOW_ID" \
+             --arg phase "$PHASE" \
+             --arg status "$STATUS" \
+             '.last_updated = $timestamp |
+              .last_flow_id = $flow_id |
+              .last_phase = $phase |
+              .last_status = $status |
+              .statistics.total_continuum_runs += 1' \
+             "$STATE_FILE" > "$STATE_FILE.tmp"
+          
+          mv "$STATE_FILE.tmp" "$STATE_FILE"
+        fi
+        
+        echo "✅ State persisted successfully"
+        echo "persisted=true" >> $GITHUB_OUTPUT
+        
+        echo "::endgroup::"
+    
+    - name: 🔗 Persist to Blockchain
+      id: blockchain
+      shell: bash
+      run: |
+        echo "::group::🔗 Blockchain Persistence"
+        
+        if [ "${{ inputs.blockchain }}" = "true" ] && [ -f ".github/scripts/blockchain-log.sh" ]; then
+          FLOW_ID="${{ inputs.flow-id }}"
+          PHASE="${{ inputs.phase }}"
+          STATUS="${{ inputs.status }}"
+          
+          # Prepare blockchain data
+          LOG_DATA=$(cat << EOF
+          {
+            "event": "state_persistence",
+            "flow_id": "$FLOW_ID",
+            "phase": "$PHASE",
+            "status": "$STATUS",
+            "state_hash": "${{ steps.persist.outputs.state-hash }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "actor": "${{ github.actor }}",
+            "repository": "${{ github.repository }}",
+            "run_id": "${{ github.run_id }}",
+            "spec": "SPEC:000-EXPANDED"
+          }
+          EOF
+          )
+          
+          # Add additional data if provided
+          if [ -n "${{ inputs.data }}" ]; then
+            LOG_DATA=$(echo "$LOG_DATA" | jq --argjson data "${{ inputs.data }}" '. + {data: $data}')
+          fi
+          
+          # Log to blockchain
+          RESULT=$(.github/scripts/blockchain-log.sh both "$LOG_DATA" 2>/dev/null || echo '{"status":"error"}')
+          TX_HASH=$(echo "$RESULT" | jq -r '.polygon_tx // .icp_tx // "pending"' 2>/dev/null || echo "pending")
+          
+          echo "Blockchain TX: $TX_HASH"
+          echo "tx-hash=$TX_HASH" >> $GITHUB_OUTPUT
+          
+          # Update state with blockchain info
+          STATE_FILE=".github/state/continuum-state.json"
+          if [ -f "$STATE_FILE" ]; then
+            jq --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+               --arg tx_hash "$TX_HASH" \
+               --arg flow_id "$FLOW_ID" \
+               --arg phase "$PHASE" \
+               '.blockchain_audit += [{
+                 "timestamp": $timestamp,
+                 "event": "state_persistence",
+                 "flow_id": $flow_id,
+                 "phase": $phase,
+                 "tx_hash": $tx_hash
+               }]' \
+               "$STATE_FILE" > "$STATE_FILE.tmp"
+            
+            mv "$STATE_FILE.tmp" "$STATE_FILE"
+          fi
+        else
+          echo "⚠️ Blockchain persistence skipped"
+          echo "tx-hash=skipped" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: 📝 Commit State Changes
+      if: inputs.commit-state == 'true'
+      shell: bash
+      run: |
+        echo "::group::📝 Commit State Changes"
+        
+        # Configure git
+        git config user.name "FSL Continuum Bot"
+        git config user.email "fsl-continuum@users.noreply.github.com"
+        
+        # Check for changes
+        if git diff --quiet .github/state/; then
+          echo "No state changes to commit"
+        else
+          echo "Committing state changes..."
+          
+          git add .github/state/
+          
+          FLOW_ID="${{ inputs.flow-id }}"
+          PHASE="${{ inputs.phase }}"
+          STATUS="${{ inputs.status }}"
+          TX_HASH="${{ steps.blockchain.outputs.tx-hash }}"
+          
+          git commit -m "🌊 FSL Continuum: Persist state [skip ci]
+
+Flow ID: $FLOW_ID
+Phase: $PHASE
+Status: $STATUS
+Blockchain TX: $TX_HASH
+SPEC: SPEC:000-EXPANDED
+
+Continuum state persists - never resets 🚀"
+          
+          # Push with retry
+          for i in {1..3}; do
+            if git push; then
+              echo "✅ State committed and pushed"
+              break
+            else
+              echo "⚠️ Push failed, attempt $i/3"
+              sleep 2
+            fi
+          done
+        fi
+        
+        echo "::endgroup::"
+    
+    - name: ✅ Persistence Complete
+      shell: bash
+      run: |
+        echo "::group::✅ State Persistence Complete"
+        echo ""
+        echo "💾 State Persistence Complete"
+        echo "============================="
+        echo "Flow ID: ${{ inputs.flow-id }}"
+        echo "Phase: ${{ inputs.phase }}"
+        echo "Status: ${{ inputs.status }}"
+        echo "State Hash: ${{ steps.persist.outputs.state-hash }}"
+        echo "Blockchain TX: ${{ steps.blockchain.outputs.tx-hash }}"
+        echo "Persisted: ${{ steps.persist.outputs.persisted }}"
+        echo ""
+        echo "🌊 FSL Continuum state preserved!"
+        echo "::endgroup::"

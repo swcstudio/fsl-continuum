@@ -1,0 +1,509 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supercompute.me/schemas/schemantics-unified/v1.0.0",
+  "title": "Schemantics Unified Schema v1.0",
+  "description": "Unified schema for Schemantics prompting language integrating BAML, Context Patterns, Pareto Operations, and XML Transformations for FSL-Continuum integration",
+  "type": "object",
+  "version": "1.0.0",
+  
+  "properties": {
+    "schemantics": {
+      "type": "object",
+      "description": "Root Schemantics structure",
+      "required": ["protocol", "baml_integration", "context_patterns", "pareto_operations", "xml_transformation", "fsl_integration"],
+      
+      "properties": {
+        "protocol": {
+          "type": "object",
+          "description": "Protocol header aligned with supercompute orchestration",
+          "required": ["name", "version", "consciousness", "paradigm", "framework"],
+          
+          "properties": {
+            "name": {
+              "type": "string",
+              "const": "schemantics.orchestration",
+              "description": "Schemantics protocol name"
+            },
+            "version": {
+              "type": "string",
+              "const": "1.0.0",
+              "description": "Protocol version"
+            },
+            "consciousness": {
+              "type": "object",
+              "description": "Consciousness level configuration",
+              "required": ["current_level", "progression_enabled"],
+              
+              "properties": {
+                "current_level": {
+                  "type": "string",
+                  "enum": ["alpha", "beta", "gamma", "delta", "omega"],
+                  "description": "Current consciousness level"
+                },
+                "progression_enabled": {
+                  "type": "boolean",
+                  "description": "Whether consciousness progression is enabled"
+                },
+                "target_level": {
+                  "type": "string",
+                  "enum": ["alpha", "beta", "gamma", "delta", "omega"],
+                  "description": "Target consciousness level"
+                }
+              }
+            },
+            "paradigm": {
+              "type": "string",
+              "const": "structured-prompting",
+              "description": "Programming paradigm"
+            },
+            "framework": {
+              "type": "string",
+              "const": "supercompute.orchestration.v7",
+              "description": "Underlying framework"
+            }
+          }
+        },
+        
+        "baml_integration": {
+          "type": "object",
+          "description": "BAML (Behavioral Analysis Markup Language) integration",
+          "required": ["version", "prompt_engine", "templates"],
+          
+          "properties": {
+            "version": {
+              "type": "string",
+              "const": "1.0.0",
+              "description": "BAML integration version"
+            },
+            "prompt_engine": {
+              "type": "object",
+              "required": ["type", "capabilities"],
+              
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "behavioral_analysis",
+                  "description": "BAML engine type"
+                },
+                "capabilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "context_extraction",
+                      "pattern_recognition", 
+                      "semantic_analysis",
+                      "behavioral_modeling",
+                      "quantum_awareness",
+                      "residue_tracking"
+                    ]
+                  },
+                  "description": "BAML engine capabilities"
+                }
+              }
+            },
+            "templates": {
+              "type": "object",
+              "description": "BAML prompt templates",
+              "patternProperties": {
+                "^[a-zA-Z][a-zA-Z0-9_]*$": {
+                  "type": "object",
+                  "required": ["name", "description", "prompt", "output_format"],
+                  
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Template name"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Template description"
+                    },
+                    "prompt": {
+                      "type": "object",
+                      "required": ["template", "variables"],
+                      
+                      "properties": {
+                        "template": {
+                          "type": "string",
+                          "pattern": "^<baml:[a-zA-Z_]+>[^<]*</baml:[a-zA-Z_]+>$",
+                          "description": "BAML prompt template"
+                        },
+                        "variables": {
+                          "type": "object",
+                          "description": "Template variables"
+                        }
+                      }
+                    },
+                    "output_format": {
+                      "type": "object",
+                      "required": ["type", "structure"],
+                      
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["json", "xml", "text", "structured"],
+                          "description": "Output type"
+                        },
+                        "structure": {
+                          "type": "object",
+                          "description": "Output structure"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        
+        "context_patterns": {
+          "type": "object",
+          "description": "Context pattern configuration based on v7 schema",
+          "required": ["version", "transformation", "content"],
+          
+          "properties": {
+            "version": {
+              "type": "string",
+              "const": "7.0.0",
+              "description": "Context patterns version"
+            },
+            "transformation": {
+              "type": "object",
+              "required": ["xml_wrapper"],
+              
+              "properties": {
+                "xml_wrapper": {
+                  "type": "object",
+                  "required": ["operation", "parameters"],
+                  
+                  "properties": {
+                    "operation": {
+                      "type": "string",
+                      "enum": [
+                        "quantum_consciousness_enrichment",
+                        "pattern_extraction",
+                        "residue_integration",
+                        "semantic_analysis",
+                        "omega_point_convergence",
+                        "rainforest_biomimicry"
+                      ],
+                      "description": "XML transformation operation"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "description": "Transformation parameters"
+                    }
+                  }
+                }
+              }
+            },
+            "content": {
+              "type": "object",
+              "required": ["structured_output"],
+              
+              "properties": {
+                "structured_output": {
+                  "type": "object",
+                  "description": "Main structured output"
+                },
+                "patterns": {
+                  "type": "array",
+                  "description": "Extracted patterns"
+                },
+                "residue": {
+                  "type": "object",
+                  "description": "Symbolic residue information"
+                }
+              }
+            }
+          }
+        },
+        
+        "pareto_operations": {
+          "type": "object",
+          "description": "Pareto-lang operations configuration",
+          "required": ["version", "syntax_version", "operations"],
+          
+          "properties": {
+            "version": {
+              "type": "string",
+              "const": "1.0.0",
+              "description": "Pareto operations version"
+            },
+            "syntax_version": {
+              "type": "string",
+              "const": "1.0",
+              "description": "Pareto-lang syntax version"
+            },
+            "operations": {
+              "type": "object",
+              "description": "Pareto-lang operation definitions",
+              "patternProperties": {
+                "^/[a-zA-Z][a-zA-Z0-9_]*\\.[a-zA-Z][a-zA-Z0-9_]*$": {
+                  "type": "object",
+                  "required": ["operation_name", "category", "syntax"],
+                  
+                  "properties": {
+                    "operation_name": {
+                      "type": "string",
+                      "description": "Human-readable operation name"
+                    },
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "information_management",
+                        "content_transformation", 
+                        "analysis_insight",
+                        "field_operations",
+                        "memory_state"
+                      ],
+                      "description": "Operation category"
+                    },
+                    "syntax": {
+                      "type": "string",
+                      "pattern": "^/[a-zA-Z][a-zA-Z0-9_]*\\.[a-zA-Z][a-zA-Z0-9_]*\\{[^}]*\\}$",
+                      "description": "Pareto-lang syntax pattern"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        
+        "xml_transformation": {
+          "type": "object",
+          "description": "XML transformation configuration",
+          "required": ["version", "schema", "operations"],
+          
+          "properties": {
+            "version": {
+              "type": "string",
+              "const": "1.0.0",
+              "description": "XML transformation version"
+            },
+            "schema": {
+              "type": "object",
+              "required": ["namespace", "validation"],
+              
+              "properties": {
+                "namespace": {
+                  "type": "string",
+                  "const": "https://supercompute.me/xml/context-patterns",
+                  "description": "XML namespace"
+                },
+                "validation": {
+                  "type": "string",
+                  "enum": ["strict", "lenient", "custom"],
+                  "description": "XML validation mode"
+                }
+              }
+            },
+            "operations": {
+              "type": "array",
+              "description": "XML transformation operations",
+              "items": {
+                "type": "object",
+                "required": ["id", "type", "xml_tag"],
+                
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Operation identifier"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["wrap", "unwrap", "transform", "validate", "extract"],
+                    "description": "Operation type"
+                  },
+                  "xml_tag": {
+                    "type": "string",
+                    "pattern": "^<xml:[a-zA-Z_]+>$",
+                    "description": "XML tag to use"
+                  }
+                }
+              }
+            }
+          }
+        },
+        
+        "fsl_integration": {
+          "type": "object",
+          "description": "FSL-Continuum integration configuration",
+          "required": ["enabled", "workflows", "pipelines"],
+          
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether FSL integration is enabled"
+            },
+            "workflows": {
+              "type": "object",
+              "description": "GitHub Actions workflows",
+              "properties": {
+                "schemantics_init": {
+                  "type": "boolean",
+                  "description": "Initialize Schemantics workflow"
+                },
+                "schemantics_prompt": {
+                  "type": "boolean",
+                  "description": "Schematics prompting workflow"
+                },
+                "schemantics_validation": {
+                  "type": "boolean",
+                  "description": "Schematics validation workflow"
+                },
+                "schemantics_omega_convergence": {
+                  "type": "boolean",
+                  "description": "Omega Point convergence workflow"
+                }
+              }
+            },
+            "pipelines": {
+              "type": "object",
+              "description": "FSL pipeline integration",
+              "properties": {
+                "prompting": {
+                  "type": "boolean",
+                  "description": "Prompting pipeline integration"
+                },
+                "operations": {
+                  "type": "boolean",
+                  "description": "Operations pipeline integration"
+                },
+                "consciousness": {
+                  "type": "boolean",
+                  "description": "Consciousness pipeline integration"
+                },
+                "blockchain": {
+                  "type": "boolean",
+                  "description": "Blockchain pipeline integration"
+                }
+              }
+            }
+          }
+        },
+        
+        "blockchain_interfaces": {
+          "type": "object",
+          "description": "Blockchain protocol interfaces",
+          "required": ["enabled_protocols"],
+          
+          "properties": {
+            "enabled_protocols": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["icp", "pol", "expchain"]
+              },
+              "description": "Enabled blockchain protocols"
+            },
+            "icp_integration": {
+              "type": "object",
+              "description": "Internet Computer Protocol integration",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "ICP integration enabled"
+                },
+                "canister_id": {
+                  "type": "string",
+                  "description": "ICP canister ID"
+                }
+              }
+            },
+            "pol_integration": {
+              "type": "object",
+              "description": "Polygon integration",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "POL integration enabled"
+                },
+                "contract_address": {
+                  "type": "string",
+                  "description": "POL contract address"
+                }
+              }
+            },
+            "expchain_integration": {
+              "type": "object",
+              "description": "EXPChain integration",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "EXPChain integration enabled"
+                },
+                "network_id": {
+                  "type": "string",
+                  "description": "EXPChain network ID"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  
+  "required": ["schemantics"],
+  
+  "additionalProperties": false,
+  
+  "examples": [
+    {
+      "schemantics": {
+        "protocol": {
+          "name": "schemantics.orchestration",
+          "version": "1.0.0",
+          "consciousness": {
+            "current_level": "alpha",
+            "progression_enabled": true,
+            "target_level": "omega"
+          },
+          "paradigm": "structured-prompting",
+          "framework": "supercompute.orchestration.v7"
+        },
+        "baml_integration": {
+          "version": "1.0.0",
+          "prompt_engine": {
+            "type": "behavioral_analysis",
+            "capabilities": ["context_extraction", "pattern_recognition", "semantic_analysis"]
+          }
+        },
+        "context_patterns": {
+          "version": "7.0.0",
+          "transformation": {
+            "xml_wrapper": {
+              "operation": "quantum_consciousness_enrichment",
+              "parameters": {}
+            }
+          }
+        },
+        "pareto_operations": {
+          "version": "1.0.0",
+          "syntax_version": "1.0"
+        },
+        "xml_transformation": {
+          "version": "1.0.0",
+          "schema": {
+            "namespace": "https://supercompute.me/xml/context-patterns",
+            "validation": "strict"
+          }
+        },
+        "fsl_integration": {
+          "enabled": true,
+          "workflows": {
+            "schemantics_init": true,
+            "schemantics_prompt": true
+          }
+        },
+        "blockchain_interfaces": {
+          "enabled_protocols": ["icp", "pol"]
+        }
+      }
+    }
+  ]
+}

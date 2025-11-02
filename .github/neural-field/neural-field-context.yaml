@@ -1,0 +1,709 @@
+# FSL Continuum Neural Field Context Configuration
+# ===============================================
+# Enhanced neural field configuration for CI/CD context awareness
+# Integrates with symbolic residue tracking and context intelligence
+
+# Field Parameters
+# ---------------
+# Core parameters that define the neural field's behavior
+field:
+  # How quickly patterns decay in the field (0.0-1.0)
+  # Lower values = longer persistence
+  decay_rate: 0.05
+  
+  # How easily new information enters the field (0.0-1.0)
+  # Higher values = more permeable boundaries
+  boundary_permeability: 0.8
+  
+  # How broadly patterns resonate with each other (0.0-1.0)
+  # Higher values = wider resonance
+  resonance_bandwidth: 0.6
+  
+  # Threshold for attractor formation (0.0-1.0)
+  # Lower values = more attractors form
+  attractor_formation_threshold: 0.7
+  
+  # Maximum field size (approximate token count)
+  # This governs the total information capacity of the field
+  max_capacity: 8000
+  
+  # Reserved tokens for response generation
+  reserved_tokens: 2000
+
+# FSL-Specific Initial Attractors
+# ------------------------------
+# Stable patterns that organize the CI/CD field from the start
+attractors:
+  # Core FSL Continuum system attractor
+  - pattern: |
+      FSL Continuum is an advanced CI/CD system with terminal velocity capabilities.
+      It orchestrates workflows across multiple markets (US, CN, IN, JP) with intelligent context awareness.
+      The system provides zero context switching, persistent state, and autonomous operations.
+      Key features include comprehensive reliability, blockchain audit trails, and multi-market optimization.
+    strength: 0.95
+    basin_width: 0.9
+    category: "system_core"
+  
+  # Quality and reliability attractor
+  - pattern: |
+      Quality and reliability are paramount in FSL Continuum operations.
+      All workflows include comprehensive testing, validation, and error handling.
+      The system implements guard rails, circuit breakers, retry handlers, and self-healing mechanisms.
+      SLA compliance is tracked with 99.9% availability targets and 5-minute MTTR goals.
+    strength: 0.9
+    basin_width: 0.85
+    category: "quality_reliability"
+  
+  # Context intelligence attractor
+  - pattern: |
+      Context intelligence enables self-improving, adaptive workflows that learn from every interaction.
+      Neural field processing provides continuous semantic awareness while symbolic residue tracking captures pattern evolution.
+      Intelligent routing decisions are made using adaptive strategies with confidence-based validation.
+      The system continuously learns and evolves from orchestration decisions and outcomes.
+    strength: 0.85
+    basin_width: 0.8
+    category: "context_intelligence"
+  
+  # Multi-market orchestration attractor
+  - pattern: |
+      FSL Continuum orchestrates workflows across global markets with localized optimization.
+      US market focuses on innovation-driven rapid deployment with cutting-edge features.
+      CN market emphasizes scale-optimized infrastructure with massive parallel processing.
+      IN market provides quality assurance and comprehensive testing with rigorous validation.
+      JP market delivers monozukuri craftsmanship standards with precision engineering.
+    strength: 0.8
+    basin_width: 0.75
+    category: "multi_market"
+  
+  # Web3 and blockchain attractor
+  - pattern: |
+      Blockchain integration provides immutable audit trails and cryptographic verification.
+      Polygon network handles transaction logging while ICP provides decentralized computation.
+      IPFS manages distributed storage with content addressing for persistent data.
+      Smart contracts enable automated governance and transparent workflow coordination.
+    strength: 0.82
+    basin_width: 0.78
+    category: "blockchain_web3"
+
+# Enhanced Resonance Configuration
+# ------------------------------
+# How the field determines semantic relationships for CI/CD context
+resonance:
+  # Method for calculating resonance
+  # Options: "cosine", "overlap", "embedding", "hybrid"
+  method: "hybrid"
+  
+  # Minimum threshold for resonance effects
+  threshold: 0.25
+  
+  # Amplification factor for resonance effects
+  amplification: 1.3
+  
+  # Whether to allow circular resonance
+  # (patterns resonating with themselves through intermediaries)
+  allow_circular: true
+  
+  # Resonance decay with semantic distance
+  # Higher values = sharper decay with distance
+  distance_factor: 0.45
+  
+  # CI/CD specific resonance weighting
+  workflow_weights:
+    "initiation": 1.2
+    "decomposition": 1.1
+    "execution": 1.3
+    "merger": 1.0
+    "security": 1.4
+    "reliability": 1.5
+
+# Enhanced Persistence Mechanisms
+# -----------------------------
+# How CI/CD context information persists over time
+persistence:
+  # Attractor protection factor (how much attractors resist decay)
+  attractor_protection: 0.85
+  
+  # Strategy for handling field capacity limits
+  # Options: "prune_oldest", "prune_weakest", "merge_similar", "intelligent"
+  overflow_strategy: "intelligent"
+  
+  # Whether to strengthen patterns that are accessed/retrieved
+  strengthen_on_access: true
+  
+  # Access strength boost for CI/CD patterns
+  access_boost: 0.35
+  
+  # Whether to periodically consolidate similar patterns
+  periodic_consolidation: true
+  
+  # Minimum similarity for consolidation
+  consolidation_threshold: 0.87
+  
+  # CI/CD specific persistence settings
+  workflow_persistence:
+    "active_workflows": 1.0
+    "completed_workflows": 0.8
+    "failed_workflows": 0.9
+    "learning_patterns": 1.0
+
+# Enhanced Field Operations
+# -----------------------
+# Operations that can be performed on the CI/CD field
+operations:
+  # Injection: adding new CI/CD information to the field
+  injection:
+    # Default strength for injected patterns
+    default_strength: 1.0
+    
+    # Whether to blend similar patterns on injection
+    blend_similar: true
+    
+    # Similarity threshold for blending
+    blend_threshold: 0.72
+    
+    # Blend ratio (how much original vs. existing)
+    blend_ratio: 0.35
+    
+    # CI/CD specific injection weights
+    injection_weights:
+      "github_events": 1.0
+      "workflow_decisions": 1.2
+      "learning_updates": 0.9
+      "error_handling": 1.1
+  
+  # Attenuation: reducing pattern strength
+  attenuation:
+    # Default attenuation factor
+    default_factor: 0.5
+    
+    # Whether to apply to resonant patterns too
+    affect_resonant: false
+    
+    # CI/CD specific attenuation rules
+    attenuation_rules:
+      "completed_workflows": 0.6
+      "failed_workflows": 0.4
+      "deprecated_patterns": 0.3
+  
+  # Amplification: increasing pattern strength
+  amplification:
+    # Default amplification factor
+    default_factor: 0.35
+    
+    # Maximum strength cap
+    max_strength: 1.5
+    
+    # Whether to apply to resonant patterns too
+    affect_resonant: true
+    
+    # CI/CD specific amplification triggers
+    amplification_triggers:
+      "successful_workflows": 0.2
+      "learning_insights": 0.3
+      "reliability_events": 0.25
+  
+  # Field collapse: resolving the field to a coherent state
+  collapse:
+    # Method for field collapse
+    # Options: "strongest_attractor", "weighted_blend", "coherence_maximizing", "intelligent"
+    method: "intelligent"
+    
+    # Whether to preserve attractors during collapse
+    preserve_attractors: true
+    
+    # Minimum coherence threshold for accepting collapse
+    coherence_threshold: 0.72
+    
+    # CI/CD specific collapse preferences
+    collapse_preferences:
+      "workflow_decisions": 1.0
+      "reliability_considerations": 1.2
+      "quality_requirements": 1.1
+      "market_optimizations": 0.9
+
+# Enhanced Symbolic Residue Tracking
+# --------------------------------
+# Configuration for tracking symbolic fragments in CI/CD workflows
+symbolic_residue:
+  # Whether to enable explicit symbolic residue tracking
+  enabled: true
+  
+  # Minimum strength threshold for tracking residue
+  min_strength: 0.35
+  
+  # Whether to surface residue in field representation
+  surface_in_representation: true
+  
+  # Maximum residues to track
+  max_tracked: 75
+  
+  # States to track
+  # Options include: "surfaced", "integrated", "echo", "shadow", "orphaned"
+  tracked_states: ["surfaced", "integrated", "echo", "shadow"]
+  
+  # CI/CD specific residue tracking
+  workflow_residue_tracking:
+    "workflow_decisions": true
+    "routing_patterns": true
+    "error_contexts": true
+    "learning_patterns": true
+    "reliability_events": true
+
+# Enhanced Measurement and Metrics
+# ------------------------------
+# Metrics for evaluating CI/CD field properties
+metrics:
+  # Field stability measurement
+  stability:
+    # Weight for attractor strength in stability calculation
+    attractor_weight: 0.65
+    
+    # Weight for pattern organization in stability calculation
+    organization_weight: 0.35
+    
+    # CI/CD specific stability factors
+    ci_factors:
+      "workflow_consistency": 0.2
+      "reliability_metrics": 0.15
+  
+  # Field coherence measurement
+  coherence:
+    # Method for calculating coherence
+    # Options: "pairwise", "attractor_alignment", "entropy", "intelligent"
+    method: "intelligent"
+    
+    # Sampling strategy for large fields
+    # Options: "full", "random", "strength_weighted", "ci_aware"
+    sampling: "ci_aware"
+    
+    # Sample size for large fields
+    sample_size: 120
+  
+  # Field resonance measurement
+  resonance:
+    # Method for measuring global resonance
+    # Options: "average", "weighted", "max", "ci_weighted"
+    method: "ci_weighted"
+    
+    # Pattern strength weight in resonance calculation
+    strength_weight: 0.75
+    
+    # CI/CD specific resonance factors
+    ci_factors:
+      "workflow_resonance": 0.3
+      "market_alignment": 0.25
+  
+  # Context intelligence metrics
+  context_intelligence:
+    # Decision accuracy tracking
+    decision_accuracy: true
+    
+    # Context utilization measurement
+    context_utilization: true
+    
+    # Adaptation rate tracking
+    adaptation_rate: true
+    
+    # Learning efficiency measurement
+    learning_efficiency: true
+
+# Enhanced Output Configuration
+# ---------------------------
+# How to format field information for CI/CD context
+output:
+  # Whether to include field state in model context
+  include_field_state: true
+  
+  # Maximum attractors to include in representation
+  max_attractors: 8
+  
+  # Maximum active patterns to include in representation
+  max_patterns: 15
+  
+  # Whether to include field metrics in representation
+  include_metrics: true
+  
+  # Whether to include symbolic residue in representation
+  include_residue: true
+  
+  # Maximum residues to include in representation
+  max_residues: 8
+  
+  # Format for field representation
+  # Options: "text", "markdown", "json", "ci_aware"
+  format: "ci_aware"
+  
+  # CI/CD specific output preferences
+  ci_preferences:
+    "include_workflow_context": true
+    "include_reliability_status": true
+    "include_market_optimizations": true
+    "include_learning_insights": true
+
+# Enhanced Integration Options
+# ---------------------------
+# Options for integrating with CI/CD systems
+integration:
+  # Whether to expose field operations via API
+  api_enabled: false
+  
+  # Whether to log field changes
+  logging_enabled: true
+  
+  # Log level (debug, info, warning, error)
+  log_level: "info"
+  
+  # Whether to save field state between sessions
+  persistence_between_sessions: true
+  
+  # Storage format for persistent field state
+  # Options: "json", "binary", "database", "blockchain"
+  storage_format: "json"
+  
+  # Path for persistent storage
+  storage_path: "./.github/state/neural-fields"
+  
+  # Whether to compress stored field state
+  compress_storage: true
+  
+  # Encryption for field state (null for none)
+  encryption_key: null
+  
+  # CI/CD specific integrations
+  ci_integrations:
+    "github_actions": true
+    "linear_sync": true
+    "slack_notifications": true
+    "blockchain_logging": true
+    "reliacy_monitoring": true
+
+# Enhanced Recursive Field Extensions
+# ---------------------------------
+# Configuration for recursive self-improvement capabilities
+recursive:
+  # Whether to enable recursive field self-improvement
+  enabled: true
+  
+  # Maximum recursion depth
+  max_depth: 4
+  
+  # Minimum improvement threshold to continue recursion
+  # (improvement must exceed this value to justify another level)
+  improvement_threshold: 0.08
+  
+  # Strategy for recursive improvement
+  # Options: "targeted_repair", "full_regeneration", "attractor_tuning", "intelligent"
+  strategy: "intelligent"
+  
+  # Whether to maintain audit log of recursive improvements
+  audit_enabled: true
+  
+  # Fields to focus recursive improvement on
+  focus_areas: ["coherence", "resonance", "stability", "context_utilization", "decision_accuracy"]
+  
+  # Self-prompt template for recursive improvement
+  self_prompt_template: |
+    Analyze the current FSL Continuum field state:
+    {field_state}
+    
+    Evaluation results:
+    {evaluation_results}
+    
+    CI/CD context requirements:
+    {context_requirements}
+    
+    Improve the field by:
+    1. Strengthening resonance with key CI/CD attractors
+    2. Addressing evaluation feedback and learning insights
+    3. Enhancing coherence and stability for reliable operations
+    4. Optimizing context utilization for intelligent routing
+    5. Ensuring alignment with multi-market requirements
+    
+    Generate an improved field state that maintains CI/CD reliability
+    while enhancing contextual intelligence and adaptive capabilities.
+
+# Enhanced Protocol Integration
+# ---------------------------
+# Configuration for integrating with protocol shells
+protocols:
+  # Whether to enable protocol shell integration
+  enabled: true
+  
+  # Default protocol shell template for CI/CD
+  default_template: |
+    /fsl.continuum.process{
+        intent="Process CI/CD information using neural field dynamics with symbolic residue analysis",
+        input={
+            field_state=<field_state>,
+            residue_patterns=<residue_patterns>,
+            workflow_context=<current_input>,
+            ci_requirements=<ci_requirements>,
+            iteration=<iteration>
+        },
+        process=[
+            /field.measure{stability, coherence, resonance, context_utilization},
+            /residue.analyze{patterns, semantic_insights, contextual_factors},
+            /attractor.identify{min_strength=0.7, category_filter=["system_core", "quality_reliability"]},
+            /pattern.process{query, attractors, ci_context},
+            /intelligence.route{strategy="adaptive", confidence_threshold=0.7},
+            /response.generate{style="coherent, reliable, context_aware"}
+        ],
+        output={
+            response=<generated_response>,
+            field_updates=<pattern_updates>,
+            residue_updates=<residue_changes>,
+            routing_decision=<intelligent_route>,
+            metrics=<field_and_intelligence_metrics>
+        }
+    }
+  
+  # Whether to embed protocol in context for model
+  embed_protocol: true
+  
+  # Protocol execution strategy
+  # Options: "model_guided", "automated", "hybrid", "ci_aware"
+  execution_strategy: "ci_aware"
+  
+  # Whether to validate protocol outputs
+  validate_outputs: true
+  
+  # CI/CD specific protocol configurations
+  ci_protocols:
+    "workflow_orchestration": true
+    "reliacy_monitoring": true
+    "market_optimization": true
+    "learning_adaptation": true
+
+# Advanced CI/CD Field Dynamics
+# ----------------------------
+# Configuration for advanced neural field behavior in CI/CD context
+advanced:
+  # Multi-field orchestration for different CI/CD aspects
+  multi_field:
+    # Whether to enable multiple specialized fields
+    enabled: true
+    
+    # Fields to create for CI/CD context
+    fields:
+      - name: "workflow_field"
+        decay_rate: 0.04
+        focus: "workflow orchestration and coordination"
+        attractors: ["system_core", "multi_market"]
+      - name: "reliability_field"
+        decay_rate: 0.03
+        focus: "reliability, error handling, and recovery"
+        attractors: ["quality_reliability", "system_core"]
+      - name: "context_field"
+        decay_rate: 0.06
+        focus: "context intelligence and adaptive learning"
+        attractors: ["context_intelligence", "system_core"]
+      - name: "market_field"
+        decay_rate: 0.05
+        focus: "multi-market optimization and localization"
+        attractors: ["multi_market", "system_core"]
+    
+    # Field interaction strategy
+    # Options: "independent", "weighted", "orchestrated", "ci_coordinated"
+    interaction: "ci_coordinated"
+  
+  # Criticality tuning for CI/CD operations (operating at edge of chaos)
+  criticality:
+    # Whether to tune field for criticality
+    enabled: true
+    
+    # Target criticality measure (0.0-1.0)
+    # Higher values = closer to chaos/instability
+    target: 0.65  # Slightly conservative for CI/CD reliability
+    
+    # Auto-adjustment parameters
+    auto_adjust: true
+    adjust_rate: 0.04
+    
+    # CI/CD specific criticality constraints
+    ci_constraints:
+      "minimum_reliability": 0.9
+      "maximum_chaos": 0.3
+  
+  # Emergent property tracking for CI/CD intelligence
+  emergence:
+    # Whether to track emergent properties
+    enabled: true
+    
+    # Properties to track in CI/CD context
+    properties:
+      - name: "self_organization"
+        detection: "workflow_coordination_patterns"
+      - name: "symbol_processing"
+        detection: "pattern_abstraction_and_generalization"
+      - name: "phase_transitions"
+        detection: "stability_and_coherence_changes"
+      - name: "intelligent_adaptation"
+        detection: "context_aware_learning_patterns"
+      - name: "predictive_routing"
+        detection: "accurate_workflow_orchestration"
+    
+    # Whether to amplify emergent properties
+    amplify: true
+    
+    # Amplification factor (conservative for CI/CD)
+    amplification: 1.1
+
+# Development and Debugging for CI/CD
+# -----------------------------------
+# Tools for developing and debugging CI/CD neural field applications
+development:
+  # Visualization options for CI/CD context
+  visualization:
+    # Whether to enable visualization
+    enabled: true
+    
+    # Visualization format for CI/CD
+    # Options: "text", "ascii", "json", "graph", "ci_dashboard"
+    format: "ci_dashboard"
+    
+    # Elements to visualize for CI/CD
+    elements:
+      - "attractors"
+      - "active_patterns"
+      - "resonance_links"
+      - "field_metrics"
+      - "symbolic_residues"
+      - "workflow_decisions"
+  
+  # Instrumentation for CI/CD field monitoring
+  instrumentation:
+    # Whether to enable instrumentation
+    enabled: true
+    
+    # Metrics to track for CI/CD
+    metrics:
+      - "stability_over_time"
+      - "pattern_count"
+      - "attractor_strength"
+      - "response_coherence"
+      - "context_utilization_rate"
+      - "decision_accuracy_rate"
+      - "learning_efficiency"
+      - "reliability_correlation"
+    
+    # Sampling interval for CI/CD monitoring
+    sampling_interval: 1
+  
+  # Testing tools for CI/CD neural fields
+  testing:
+    # Whether to enable testing tools
+    enabled: true
+    
+    # CI/CD specific test scenarios
+    scenarios:
+      - name: "workflow_stability_test"
+        description: "Test field stability under workflow load"
+        workflow_load: "high"
+        noise_level: 0.2
+      - name: "context_resonance_test"
+        description: "Test pattern resonance with CI/CD context"
+        pattern_pairs: 15
+        context_weight: 0.8
+      - name: "reliacy_persistence_test"
+        description: "Test information persistence across CI/CD operations"
+        reliability_cycles: 10
+        failure_simulation: true
+      - name: "intelligence_adaptation_test"
+        description: "Test adaptive learning and routing decisions"
+        learning_iterations: 20
+        adaptation_threshold: 0.1
+    
+    # Automatic regression testing for CI/CD
+    auto_regression: true
+    
+    # CI/CD specific validation
+    validation:
+      "reliability_threshold": 0.9
+      "performance_threshold": 0.8
+      "accuracy_threshold": 0.7
+
+# Security and Privacy for CI/CD
+# -------------------------------
+# Security configuration for neural field operations
+security:
+  # Whether to enable security features
+  enabled: true
+  
+  # Encryption for sensitive CI/CD data
+  encryption:
+    # Whether to encrypt field state
+    field_state_encryption: false
+    
+    # Whether to encrypt residue patterns
+    residue_encryption: true
+    
+    # Encryption algorithm
+    algorithm: "AES-256-GCM"
+  
+  # Access control for field operations
+  access_control:
+    # Whether to enable access control
+    enabled: true
+    
+    # Roles and permissions
+    roles:
+      "admin": ["read", "write", "delete", "configure"]
+      "operator": ["read", "write"]
+      "viewer": ["read"]
+  
+  # Audit logging for security
+  audit:
+    # Whether to enable audit logging
+    enabled: true
+    
+    # Events to audit
+    audit_events:
+      - "field_state_changes"
+      - "residue_operations"
+      - "routing_decisions"
+      - "learning_updates"
+      - "access_granted"
+      - "access_denied"
+
+# Performance Optimization for CI/CD
+# ----------------------------------
+# Performance tuning for neural field operations
+performance:
+  # GPU acceleration settings
+  gpu_acceleration:
+    # Whether to enable GPU acceleration
+    enabled: false  # Can be enabled when CUDA.jl is available
+    
+    # GPU memory allocation
+    memory_allocation: "auto"
+    
+    # Batch processing size
+    batch_size: 32
+  
+  # Distributed processing settings
+  distributed:
+    # Whether to enable distributed processing
+    enabled: false
+    
+    # Number of worker processes
+    workers: 4
+    
+    # Load balancing strategy
+    load_balancing: "round_robin"
+  
+  # Caching strategies for CI/CD
+  caching:
+    # Whether to enable caching
+    enabled: true
+    
+    # Cache size limit
+    cache_size_limit: "1GB"
+    
+    # Cache expiration policy
+    expiration_policy: "lru"
+    
+    # Cache invalidation triggers
+    invalidation_triggers:
+      - "field_state_changes"
+      - "residue_updates"
+      - "configuration_changes"

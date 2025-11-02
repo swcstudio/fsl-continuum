@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copilot Task Agent - Desktop</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #007AFF;
+            --primary-dark: #0056B3;
+            --primary-light: #e7f3ff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --error-color: #dc3545;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-color: #e9ecef;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+            --font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .app-header {
+            background: var(--card-bg);
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .app-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--success-color);
+            box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2);
+        }
+
+        /* Main Container */
+        .app-container {
+            flex: 1;
+            display: flex;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            gap: 24px;
+            padding: 24px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 8px;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .nav-item:hover {
+            background: var(--primary-light);
+            color: var(--primary-color);
+            transform: translateX(4px);
+        }
+
+        .nav-item.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .nav-icon {
+            margin-right: 12px;
+            font-size: 16px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* Input Section */
+        .input-section {
+            margin-bottom: 24px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .prompt-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: var(--font-family);
+            resize: vertical;
+            transition: border-color 0.2s ease;
+        }
+
+        .prompt-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary-light);
+        }
+
+        /* Results Section */
+        .results-container {
+            margin-top: 20px;
+        }
+
+        .result-item {
+            background: var(--bg-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .result-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: var(--success-color);
+            color: white;
+            font-weight: 500;
+        }
+
+        .result-content {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Loading State */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Status Messages */
+        .status-message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status-message.active {
+            display: block;
+        }
+
+        .status-message.success {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+        }
+
+        .status-message.error {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+        }
+
+        .status-message.warning {
+            background: rgba(255, 193, 7, 0.1);
+            color: var(--warning-color);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .app-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                margin-bottom: 24px;
+            }
+            
+            .main-content {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 16px;
+                gap: 16px;
+            }
+            
+            .card-header {
+                padding: 16px;
+            }
+            
+            .card-body {
+                padding: 16px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-title">🌊 Copilot Task Agent - Desktop</div>
+        <div class="status-indicator" title="Connected"></div>
+    </header>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-title">Navigation</div>
+            <a href="#" class="nav-item active" data-tab="prompt">
+                <span class="nav-icon">✨</span>
+                <span>Prompt Uplift</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="executions">
+                <span class="nav-icon">⚡</span>
+                <span>Task Executions</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="settings">
+                <span class="nav-icon">⚙️</span>
+                <span>Settings</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="help">
+                <span class="nav-icon">❓</span>
+                <span>Help</span>
+            </a>
+        </aside>
+
+        <main class="main-content">
+            <!-- Prompt Uplift Section -->
+            <div class="card" id="prompt-tab">
+                <div class="card-header">
+                    <div class="card-title">Prompt Uplift</div>
+                    <div class="card-subtitle">Transform natural language into OpenSpec schema</div>
+                </div>
+                <div class="card-body">
+                    <div class="status-message" id="status-message"></div>
+                    
+                    <div class="input-section">
+                        <label class="input-label" for="prompt-input">Enter your prompt:</label>
+                        <textarea 
+                            id="prompt-input" 
+                            class="prompt-input" 
+                            placeholder="Type your prompt here... I'll uplift it to OpenSpec schema and execute it with terminal velocity."
+                        ></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="uplift-btn">
+                            <span>🚀</span>
+                            <span>Uplift & Execute</span>
+                        </button>
+                        <button class="btn btn-secondary" id="save-btn">
+                            <span>💾</span>
+                            <span>Save Draft</span>
+                        </button>
+                    </div>
+
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <div>Processing with terminal velocity...</div>
+                    </div>
+
+                    <div class="results-container" id="results"></div>
+                </div>
+            </div>
+
+            <!-- Task Executions Section -->
+            <div class="card" id="executions-tab" style="display: none;">
+                <div class="card-header">
+                    <div class="card-title">Task Executions</div>
+                    <div class="card-subtitle">Recent task executions and results</div>
+                </div>
+                <div class="card-body">
+                    <div class="results-container" id="executions-history">
+                        <!-- Executions will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div class="card" id="settings-tab" style="display: none;">
+                <div class="card-header">
+                    <div class="card-title">Settings</div>
+                    <div class="card-subtitle">Configure Copilot Task Agent</div>
+                </div>
+                <div class="card-body">
+                    <div class="input-section">
+                        <label class="input-label" for="terminal-velocity">Terminal Velocity Mode</label>
+                        <select id="terminal-velocity" class="prompt-input">
+                            <option value="enabled">Enabled</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-section">
+                        <label class="input-label" for="flow-state">Flow State Preservation</label>
+                        <select id="flow-state" class="prompt-input">
+                            <option value="enabled">Enabled</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="save-settings">
+                            <span>💾</span>
+                            <span>Save Settings</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Section -->
+            <div class="card" id="help-tab" style="display: none;">
+                <div class="card-header">
+                    <div class="card-title">Help</div>
+                    <div class="card-subtitle">Learn how to use Copilot Task Agent</div>
+                </div>
+                <div class="card-body">
+                    <div class="result-item">
+                        <div class="result-header">
+                            <div class="result-title">Quick Start</div>
+                            <div class="result-status">New</div>
+                        </div>
+                        <div class="result-content">
+                            1. Type your prompt in the input field<br>
+                            2. Click "Uplift & Execute" to transform it to OpenSpec schema<br>
+                            3. The system will execute with terminal velocity<br>
+                            4. View results in real-time
+                        </div>
+                    </div>
+                    
+                    <div class="result-item">
+                        <div class="result-header">
+                            <div class="result-title">Terminal Velocity</div>
+                            <div class="result-status">Enabled</div>
+                        </div>
+                        <div class="result-content">
+                            Terminal Velocity mode processes tasks in the background, preserving your flow state and maximizing productivity.
+                        </div>
+                    </div>
+                    
+                    <div class="result-item">
+                        <div class="result-header">
+                            <div class="result-title">Flow State Preservation</div>
+                            <div class="result-status">Active</div>
+                        </div>
+                        <div class="result-content">
+                            Flow state preservation maintains your focus by minimizing context switching and interruptions.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Copilot Task Agent Desktop App
+        class CopilotDesktopApp {
+            constructor() {
+                this.apiEndpoint = 'http://localhost:8000';
+                this.currentTab = 'prompt';
+                this.executions = [];
+                this.settings = {
+                    terminalVelocity: 'enabled',
+                    flowState: 'enabled'
+                };
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadExecutions();
+                this.loadSettings();
+                this.checkApiConnection();
+            }
+
+            setupEventListeners() {
+                // Navigation
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const tab = item.dataset.tab;
+                        this.switchTab(tab);
+                    });
+                });
+
+                // Buttons
+                document.getElementById('uplift-btn').addEventListener('click', () => {
+                    this.upliftAndExecute();
+                });
+
+                document.getElementById('save-btn').addEventListener('click', () => {
+                    this.saveDraft();
+                });
+
+                document.getElementById('save-settings').addEventListener('click', () => {
+                    this.saveSettings();
+                });
+
+                // Input focus
+                const promptInput = document.getElementById('prompt-input');
+                promptInput.addEventListener('focus', () => {
+                    this.hideStatusMessage();
+                });
+            }
+
+            switchTab(tabName) {
+                // Update navigation
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+                // Update content
+                document.querySelectorAll('[id$="-tab"]').forEach(tab => {
+                    tab.style.display = 'none';
+                });
+                document.getElementById(`${tabName}-tab`).style.display = 'block';
+
+                this.currentTab = tabName;
+            }
+
+            async upliftAndExecute() {
+                const promptInput = document.getElementById('prompt-input');
+                const prompt = promptInput.value.trim();
+
+                if (!prompt) {
+                    this.showStatusMessage('Please enter a prompt', 'error');
+                    return;
+                }
+
+                // Show loading
+                this.showLoading(true);
+                this.showStatusMessage('Uplifting prompt to OpenSpec schema...', 'success');
+
+                try {
+                    // Call uplift API
+                    const response = await fetch(`${this.apiEndpoint}/api/v1/uplift`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ prompt }),
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.showUpliftResult(result);
+                        this.addExecution(prompt, result);
+                        this.showStatusMessage('Prompt uplifted and executed successfully!', 'success');
+                        promptInput.value = '';
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    console.error('Uplift error:', error);
+                    this.showStatusMessage('Failed to uplift prompt. Please try again.', 'error');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            showUpliftResult(result) {
+                const resultsContainer = document.getElementById('results');
+                
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+                resultItem.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-title">OpenSpec Schema</div>
+                        <div class="result-status">Generated</div>
+                    </div>
+                    <div class="result-content">
+                        <pre style="background: #f8f9fa; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px;">${JSON.stringify(result.schema, null, 2)}</pre>
+                    </div>
+                    <div class="result-header" style="margin-top: 12px;">
+                        <div class="result-title">Execution Result</div>
+                        <div class="result-status">${result.success ? 'Success' : 'Failed'}</div>
+                    </div>
+                    <div class="result-content">
+                        ${result.success ? result.output : result.error}
+                    </div>
+                `;
+
+                resultsContainer.appendChild(resultItem);
+            }
+
+            addExecution(prompt, result) {
+                const execution = {
+                    id: Date.now(),
+                    prompt,
+                    timestamp: new Date().toISOString(),
+                    success: result.success,
+                    result: result
+                };
+
+                this.executions.unshift(execution);
+                this.saveExecutions();
+                this.updateExecutionsDisplay();
+            }
+
+            updateExecutionsDisplay() {
+                const executionsHistory = document.getElementById('executions-history');
+                executionsHistory.innerHTML = '';
+
+                this.executions.forEach(execution => {
+                    const executionItem = document.createElement('div');
+                    executionItem.className = 'result-item';
+                    executionItem.innerHTML = `
+                        <div class="result-header">
+                            <div class="result-title">${execution.prompt.substring(0, 50)}...</div>
+                            <div class="result-status">${execution.success ? 'Success' : 'Failed'}</div>
+                        </div>
+                        <div class="result-content">
+                            <strong>Time:</strong> ${new Date(execution.timestamp).toLocaleString()}<br>
+                            <strong>Prompt:</strong> ${execution.prompt}<br>
+                            <strong>Result:</strong> ${execution.success ? 'Executed successfully' : execution.result.error}
+                        </div>
+                    `;
+
+                    executionsHistory.appendChild(executionItem);
+                });
+            }
+
+            saveDraft() {
+                const prompt = document.getElementById('prompt-input').value;
+                if (prompt) {
+                    localStorage.setItem('copilot_draft', prompt);
+                    this.showStatusMessage('Draft saved', 'success');
+                }
+            }
+
+            loadDraft() {
+                const draft = localStorage.getItem('copilot_draft');
+                if (draft) {
+                    document.getElementById('prompt-input').value = draft;
+                }
+            }
+
+            saveSettings() {
+                this.settings.terminalVelocity = document.getElementById('terminal-velocity').value;
+                this.settings.flowState = document.getElementById('flow-state').value;
+                localStorage.setItem('copilot_settings', JSON.stringify(this.settings));
+                this.showStatusMessage('Settings saved', 'success');
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('copilot_settings');
+                if (saved) {
+                    this.settings = JSON.parse(saved);
+                    document.getElementById('terminal-velocity').value = this.settings.terminalVelocity;
+                    document.getElementById('flow-state').value = this.settings.flowState;
+                }
+            }
+
+            saveExecutions() {
+                localStorage.setItem('copilot_executions', JSON.stringify(this.executions));
+            }
+
+            loadExecutions() {
+                const saved = localStorage.getItem('copilot_executions');
+                if (saved) {
+                    this.executions = JSON.parse(saved);
+                    this.updateExecutionsDisplay();
+                }
+            }
+
+            async checkApiConnection() {
+                try {
+                    const response = await fetch(`${this.apiEndpoint}/health`);
+                    if (response.ok) {
+                        document.querySelector('.status-indicator').style.background = 'var(--success-color)';
+                    } else {
+                        throw new Error('API not responding');
+                    }
+                } catch (error) {
+                    document.querySelector('.status-indicator').style.background = 'var(--error-color)';
+                    this.showStatusMessage('Cannot connect to API server. Please ensure it\'s running.', 'error');
+                }
+            }
+
+            showLoading(show) {
+                const loading = document.getElementById('loading');
+                const upliftBtn = document.getElementById('uplift-btn');
+                
+                if (show) {
+                    loading.classList.add('active');
+                    upliftBtn.disabled = true;
+                } else {
+                    loading.classList.remove('active');
+                    upliftBtn.disabled = false;
+                }
+            }
+
+            showStatusMessage(message, type) {
+                const statusMessage = document.getElementById('status-message');
+                statusMessage.textContent = message;
+                statusMessage.className = `status-message ${type} active`;
+            }
+
+            hideStatusMessage() {
+                const statusMessage = document.getElementById('status-message');
+                statusMessage.classList.remove('active');
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            new CopilotDesktopApp();
+        });
+    </script>
+</body>
+</html>

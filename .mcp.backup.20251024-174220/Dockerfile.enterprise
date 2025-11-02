@@ -1,0 +1,100 @@
+FROM node:18-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    curl \
+    git
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source code
+COPY src ./src
+
+# Build TypeScript
+RUN npm run build
+
+# Create logs and uploads directories
+RUN mkdir -p logs uploads
+
+# Production stage
+FROM node:18-alpine AS production
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    curl \
+    bash \
+    dumb-init \
+    openssl \
+    postgresql-client \
+    redis-tools \
+    netcat-openbsd
+
+# Create non-root user
+RUN addgroup -g 1001 -S zeroserve && \
+    adduser -S zeroserve -u 1001 -G zeroserve
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built application
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/types ./src/types
+
+# Copy configuration files
+COPY .env.example ./.env.example
+COPY docker-compose.enterprise.yml ./docker-compose.enterprise.yml
+
+# Create directories
+RUN mkdir -p logs uploads database monitoring/nginx monitoring/grafana
+
+# Change ownership to zeroserve user
+RUN chown -R zeroserve:zeroserve /app
+
+# Switch to non-root user
+USER zeroserve
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV ZEROSERVE_ENTERPRISE=true
+
+# Use dumb-init as PID 1
+ENTRYPOINT ["dumb-init", "--"]
+
+# Default command (Enterprise HTTP transport)
+CMD ["node", "dist/cli.js", "http", "--enterprise"]
+
+# Labels for container metadata
+LABEL maintainer="ZeroServe Team" \
+      version="2.0.0" \
+      description="ZeroServe Enterprise MCP Server - AI-native domain scanning and infrastructure analysis" \
+      org.opencontainers.image.title="zeroserve-mcp-server-enterprise" \
+      org.opencontainers.image.description="ZeroServe Enterprise MCP Server - AI-native domain scanning and infrastructure analysis" \
+      org.opencontainers.image.version="2.0.0" \
+      org.opencontainers.image.vendor="ZeroServe" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.url="https://github.com/zeroserve/mcp-server"
