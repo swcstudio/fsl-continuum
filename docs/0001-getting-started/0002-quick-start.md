@@ -28,17 +28,7 @@ pip install -e .
 fsl --version
 ```
 
-### Quick Setup with Installer
 
-```bash
-# One-command setup (includes all dependencies)
-curl -sSL https://install.fsl-continuum.sh | bash
-
-# Or download and run
-wget https://install.fsl-continuum.sh
-chmod +x install.fsl-continuum.sh
-./install.fsl-continuum.sh
-```
 
 ## ⚡ Your First FSL Pipeline
 
