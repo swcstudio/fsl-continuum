@@ -12,7 +12,7 @@ Welcome to FSL Continuum! This section will help you get up and running quickly.
 
 ```bash
 # 1. Install FSL Continuum
-curl -sSL https://install.fsl-continuum.sh | bash
+# Installation script coming soon. For now, see Installation Guide below.
 
 # 2. Initialize in your project
 cd your-project
@@ -21,6 +21,8 @@ fsl init
 # 3. Trigger your first pipeline
 fsl trigger genetic-tests
 ```
+
+For detailed installation instructions, see [Installation](0003-installation.md).
 
 ## Need Help?
 
