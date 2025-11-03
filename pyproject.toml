@@ -208,15 +208,15 @@ enterprise = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/fsl-continuum"
+Homepage = "https://github.com/swcstudio/fsl-continuum"
 Documentation = "https://fsl-continuum.readthedocs.io/"
-Repository = "https://github.com/your-org/fsl-continuum.git"
-"Bug Tracker" = "https://github.com/your-org/fsl-continuum/issues"
-Changelog = "https://github.com/your-org/fsl-continuum/blob/main/CHANGELOG.md"
-"Security Policy" = "https://github.com/your-org/fsl-continuum/blob/main/SECURITY.md"
-"Code of Conduct" = "https://github.com/your-org/fsl-continuum/blob/main/CODE_OF_CONDUCT.md"
-"Contributing Guidelines" = "https://github.com/your-org/fsl-continuum/blob/main/CONTRIBUTING.md"
-Discussions = "https://github.com/your-org/fsl-continuum/discussions"
+Repository = "https://github.com/swcstudio/fsl-continuum.git"
+"Bug Tracker" = "https://github.com/swcstudio/fsl-continuum/issues"
+Changelog = "https://github.com/swcstudio/fsl-continuum/blob/main/CHANGELOG.md"
+"Security Policy" = "https://github.com/swcstudio/fsl-continuum/blob/main/SECURITY.md"
+"Code of Conduct" = "https://github.com/swcstudio/fsl-continuum/blob/main/CODE_OF_CONDUCT.md"
+"Contributing Guidelines" = "https://github.com/swcstudio/fsl-continuum/blob/main/CONTRIBUTING.md"
+Discussions = "https://github.com/swcstudio/fsl-continuum/discussions"
 
 [project.scripts]
 fsl = "fsl_continuum.cli:main"

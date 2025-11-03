@@ -109,10 +109,10 @@ Best practices from:
 
 ## 🔗 External Resources
 
-- [GitHub Repository](https://github.com/your-org/fsl-continuum)
-- [PyPI Package](https://pypi.org/project/fsl-continuum/)
-- [Docker Hub](https://hub.docker.com/r/fslcontinuum/)
-- [Community Discord](https://discord.gg/fsl-continuum)
+- [GitHub Repository](https://github.com/swcstudio/fsl-continuum)
+- [PyPI Package](https://pypi.org/project/fsl-continuum/) - *Coming Soon*
+- [Docker Hub](https://hub.docker.com/r/fslcontinuum/) - *Coming Soon*
+- [Community Discord](https://discord.gg/fsl-continuum) - *Coming Soon*
 
 ## 💡 Contributing
 
