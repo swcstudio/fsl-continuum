@@ -49,9 +49,14 @@ class BAMLParser:
     
     def load_template(self, template_path: Path) -> Dict[str, Any]:
         """Load BAML template from file."""
-        with open(template_path, 'r') as f:
-            content = f.read()
-        return self.parse(content)
+        try:
+            with open(template_path, 'r') as f:
+                content = f.read()
+            return self.parse(content)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Template file not found: {template_path}")
+        except Exception as e:
+            raise IOError(f"Error loading template: {e}")
 
 
 class BAMLValidator:
