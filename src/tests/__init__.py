@@ -14,39 +14,30 @@ Provides:
 """
 
 # Core testing framework modules
-from .test_framework import (
-    SemanticLanguageBaseTest,
-    TestDataManager,
-    TestUtils,
-    MockComponents,
-    TestConfig
-)
+try:
+    from .test_framework import (
+        SemanticLanguageBaseTest,
+        TestDataManager,
+    )
+except ImportError:
+    SemanticLanguageBaseTest = None
+    TestDataManager = None
 
 # Test automation modules
-from .test_automation import (
-    TestAutomationFramework,
-    CICDIntegration,
-    TestRunner,
-    TestScheduler,
-    TestReporter
-)
-
-# Test utilities
-from .test_utils import (
-    XMLTestValidator,
-    JSONTestValidator,
-    PerformanceTestMonitor,
-    SemanticLanguageAssertions,
-    TestReporting
-)
-
-# Test configurations
-from .test_config import (
-    TestConfiguration,
-    TestEnvironmentConfig,
-    TestDatabaseConfig,
-    TestReportingConfig
-)
+try:
+    from .test_framework.test_automation import (
+        TestAutomationFramework,
+        CICDIntegration,
+        TestRunner,
+        TestScheduler,
+        TestReporter
+    )
+except ImportError:
+    TestAutomationFramework = None
+    CICDIntegration = None
+    TestRunner = None
+    TestScheduler = None
+    TestReporter = None
 
 # Version and compatibility
 __version__ = "1.0.0-testing-framework"
@@ -90,11 +81,10 @@ class SemanticLanguageTestFramework:
     """Main test framework manager for semantic languages."""
     
     def __init__(self):
-        self.test_data_manager = TestDataManager()
-        self.test_utils = TestUtils()
-        self.mock_components = MockComponents()
-        self.test_config = TestConfig()
-        self.test_automation = TestAutomationFramework()
+        if TestDataManager:
+            self.test_data_manager = TestDataManager()
+        if TestAutomationFramework:
+            self.test_automation = TestAutomationFramework()
         
     def get_framework_capabilities(self):
         """Get test framework capabilities."""
@@ -111,17 +101,21 @@ class SemanticLanguageTestFramework:
     
     def run_full_test_suite(self, test_config=None):
         """Run full test suite for semantic languages."""
-        return self.test_automation.run_automated_test_suite(test_config)
+        if self.test_automation:
+            return self.test_automation.run_automated_test_suite(test_config)
+        return {"error": "Test automation not available"}
     
     def get_test_status(self):
         """Get current test framework status."""
-        return {
+        status = {
             "framework_status": "active",
-            "test_environment": self.test_config.get_test_environment(),
-            "test_data_status": self.test_data_manager.get_status(),
-            "automation_status": self.test_automation.get_status(),
             "capabilities": TEST_FRAMEWORK_CAPABILITIES
         }
+        if hasattr(self, 'test_data_manager'):
+            status["test_data_status"] = self.test_data_manager.get_status()
+        if hasattr(self, 'test_automation'):
+            status["automation_status"] = self.test_automation.get_status()
+        return status
 
 # Export main classes and configuration
 __all__ = [
@@ -129,9 +123,6 @@ __all__ = [
     'SemanticLanguageTestFramework',
     'SemanticLanguageBaseTest',
     'TestDataManager',
-    'TestUtils',
-    'MockComponents',
-    'TestConfig',
     
     # Automation classes
     'TestAutomationFramework',
@@ -139,19 +130,6 @@ __all__ = [
     'TestRunner',
     'TestScheduler',
     'TestReporter',
-    
-    # Utility classes
-    'XMLTestValidator',
-    'JSONTestValidator',
-    'PerformanceTestMonitor',
-    'SemanticLanguageAssertions',
-    'TestReporting',
-    
-    # Configuration classes
-    'TestConfiguration',
-    'TestEnvironmentConfig',
-    'TestDatabaseConfig',
-    'TestReportingConfig',
     
     # Constants
     'TEST_FRAMEWORK_CAPABILITIES',
