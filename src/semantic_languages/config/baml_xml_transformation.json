@@ -1,0 +1,348 @@
+{
+  "schema_version": "1.0.0-xml-integration",
+  "transformation_type": "baml-semantic-xml",
+  "description": "BAML XML transformation configuration for FSL Continuum integration",
+  "configuration": {
+    "default_settings": {
+      "enabled": true,
+      "wrapper_tag": "baml-semantic-data",
+      "schema_version": "1.0.0-baml-xml",
+      "namespace": "http://fsl-continuum.org/baml",
+      "preserve_semantics": true,
+      "context_aware": true,
+      "ai_enhanced": true
+    },
+    "wrapper_configuration": {
+      "root_element": {
+        "tag": "baml-semantic-data",
+        "attributes": {
+          "version": "1.0.0-baml-xml",
+          "spec": "BAML-XML-TRANSFORM-001",
+          "timestamp": "auto-generated",
+          "language": "baml",
+          "xml_version": "1.0",
+          "encoding": "UTF-8"
+        }
+      },
+      "metadata_section": {
+        "tag": "metadata",
+        "schema": {
+          "type": "baml-schema",
+          "version": "1.0.0-baml-xml"
+        },
+        "validation": {
+          "type": "baml-validation",
+          "ai_enhanced": "true"
+        }
+      },
+      "transformations_section": {
+        "tag": "transformations",
+        "attributes": {
+          "applied": "true",
+          "xml_wrapping": "true",
+          "semantic_preservation": "true",
+          "context_aware": "true",
+          "ai_enhanced": "true"
+        }
+      },
+      "content_section": {
+        "tag": "baml-content",
+        "include_metadata": true,
+        "include_ai_processing": true
+      }
+    },
+    "element_mapping": {
+      "baml_root": {
+        "xml_element": "baml-content",
+        "preserve_structure": true,
+        "include_metadata": true
+      },
+      "boundary": {
+        "xml_element": "boundary",
+        "attributes": ["name", "type", "ai_enhanced"],
+        "preserve_metadata": true
+      },
+      "connection": {
+        "xml_element": "connection",
+        "attributes": ["source", "target", "type", "direction"],
+        "preserve_context": true
+      },
+      "constraint": {
+        "xml_element": "constraint",
+        "attributes": ["name", "type", "scope"],
+        "preserve_conditions": true
+      },
+      "boundary_constraint": {
+        "xml_element": "constraint",
+        "attributes": ["type", "operator", "value"],
+        "preserve_ai_enforcement": true
+      },
+      "connection_condition": {
+        "xml_element": "condition",
+        "attributes": ["variable", "operator"],
+        "preserve_context": true
+      },
+      "constraint_condition": {
+        "xml_element": "condition",
+        "attributes": ["variable", "operator"],
+        "preserve_logical_operator": true
+      },
+      "metadata": {
+        "xml_element": "metadata",
+        "preserve_all": true
+      },
+      "ai_integration": {
+        "xml_element": "ai-integration",
+        "preserve_models": true,
+        "preserve_features": true
+      },
+      "fsl_continuum_integration": {
+        "xml_element": "fsl-continuum-integration",
+        "preserve_settings": true,
+        "preserve_connections": true
+      }
+    },
+    "semantic_preservation": {
+      "enabled": true,
+      "rules": {
+        "preserve_boundary_hierarchy": true,
+        "preserve_connection_directions": true,
+        "preserve_constraint_scope": true,
+        "preserve_ai_enhancement": true,
+        "preserve_metadata": true,
+        "preserve_context": true
+      }
+    },
+    "context_awareness": {
+      "enabled": true,
+      "features": {
+        "operation_type": {
+          "enabled": true,
+          "detect": true,
+          "preserve": true
+        },
+        "priority": {
+          "enabled": true,
+          "detect": true,
+          "preserve": true
+        },
+        "user_preferences": {
+          "enabled": true,
+          "detect": true,
+          "preserve": true
+        },
+        "ai_config": {
+          "enabled": true,
+          "detect": true,
+          "preserve": true
+        }
+      }
+    },
+    "ai_enhancement": {
+      "enabled": true,
+      "features": {
+        "ai_enhanced_detection": {
+          "enabled": true,
+          "detect_boundaries": true,
+          "detect_connections": true,
+          "detect_constraints": true,
+          "detect_metadata": true
+        },
+        "ai_features_preservation": {
+          "enabled": true,
+          "preserve_models": true,
+          "preserve_features": true,
+          "preserve_learning": true
+        },
+        "ai_context_preservation": {
+          "enabled": true,
+          "preserve_processing": true,
+          "preserve_optimization": true,
+          "preserve_prediction": true
+        }
+      }
+    },
+    "validation": {
+      "enabled": true,
+      "rules": {
+        "xml_structure_validation": {
+          "enabled": true,
+          "validate_schema": true,
+          "validate_structure": true,
+          "validate_attributes": true
+        },
+        "baml_schema_validation": {
+          "enabled": true,
+          "validate_boundaries": true,
+          "validate_connections": true,
+          "validate_constraints": true
+        },
+        "semantic_validation": {
+          "enabled": true,
+          "validate_hierarchy": true,
+          "validate_references": true,
+          "validate_ai_enhancement": true
+        }
+      }
+    }
+  },
+  "transformation_modes": {
+    "wrap_baml_to_xml": {
+      "enabled": true,
+      "process": [
+        "validate_baml_structure",
+        "create_xml_wrapper",
+        "add_metadata_section",
+        "add_transformations_section",
+        "transform_baml_content",
+        "add_ai_enhancement",
+        "validate_xml_output"
+      ]
+    },
+    "unwrap_xml_to_baml": {
+      "enabled": true,
+      "process": [
+        "validate_xml_structure",
+        "extract_baml_content",
+        "restore_metadata",
+        "restore_ai_enhancement",
+        "validate_baml_output"
+      ]
+    },
+    "round_trip_transformation": {
+      "enabled": true,
+      "validation": [
+        "semantic_preservation_check",
+        "structure_integrity_check",
+        "ai_enhancement_check",
+        "metadata_preservation_check"
+      ]
+    }
+  },
+  "error_handling": {
+    "invalid_baml_structure": {
+      "error_type": "validation_error",
+      "recovery": "provide_valid_baml_structure",
+      "message": "Invalid BAML structure provided for XML transformation"
+    },
+    "invalid_xml_structure": {
+      "error_type": "xml_error",
+      "recovery": "provide_valid_xml_structure",
+      "message": "Invalid XML structure generated from BAML data"
+    },
+    "semantic_preservation_failed": {
+      "error_type": "semantic_error",
+      "recovery": "preserve_semantics_manually",
+      "message": "Failed to preserve semantic meaning during XML transformation"
+    },
+    "ai_enhancement_failed": {
+      "error_type": "ai_error",
+      "recovery": "disable_ai_enhancement",
+      "message": "Failed to apply AI enhancement during XML transformation"
+    }
+  },
+  "performance_optimization": {
+    "caching_enabled": true,
+    "batch_processing_enabled": true,
+    "parallel_processing_enabled": true,
+    "memory_optimization_enabled": true,
+    "optimization_settings": {
+      "cache_size": "100MB",
+      "batch_size": 50,
+      "parallel_workers": 4,
+      "memory_limit": "512MB"
+    }
+  },
+  "examples": {
+    "basic_baml_transformation": {
+      "input": {
+        "version": "1.0.0-fsl-integration",
+        "spec": "BAML-SEMANTIC-001",
+        "boundaries": [
+          {
+            "name": "test_boundary",
+            "type": "data",
+            "ai_enhanced": true
+          }
+        ]
+      },
+      "output": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<baml-semantic-data version=\"1.0.0-baml-xml\" spec=\"BAML-XML-TRANSFORM-001\" timestamp=\"2025-01-22T12:00:00Z\" language=\"baml\" xml_version=\"1.0\" encoding=\"UTF-8\">\n  <metadata>\n    <schema type=\"baml-schema\" version=\"1.0.0-baml-xml\"/>\n    <validation type=\"baml-validation\" ai_enhanced=\"true\"/>\n  </metadata>\n  <transformations applied=\"true\" xml_wrapping=\"true\" semantic_preservation=\"true\" context_aware=\"true\" ai_enhanced=\"true\"/>\n  <baml-content>\n    <boundaries>\n      <boundary name=\"test_boundary\" type=\"data\" ai_enhanced=\"true\"/>\n    </boundaries>\n  </baml-content>\n</baml-semantic-data>"
+    },
+    "complex_baml_transformation": {
+      "input": {
+        "version": "1.0.0-fsl-integration",
+        "spec": "BAML-SEMANTIC-001",
+        "boundaries": [
+          {
+            "name": "data_boundary",
+            "type": "data",
+            "ai_enhanced": true,
+            "constraints": [
+              {
+                "type": "validation",
+                "operator": "contains",
+                "value": "semantic_metadata",
+                "ai_enforced": true
+              }
+            ]
+          },
+          {
+            "name": "process_boundary",
+            "type": "process",
+            "ai_enhanced": true
+          }
+        ],
+        "connections": [
+          {
+            "source": "data_boundary",
+            "target": "process_boundary",
+            "type": "data_flow",
+            "direction": "unidirectional",
+            "ai_enhanced": true
+          }
+        ]
+      },
+      "output": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<baml-semantic-data version=\"1.0.0-baml-xml\" spec=\"BAML-XML-TRANSFORM-001\" timestamp=\"2025-01-22T12:00:00Z\" language=\"baml\" xml_version=\"1.0\" encoding=\"UTF-8\">\n  <metadata>\n    <schema type=\"baml-schema\" version=\"1.0.0-baml-xml\"/>\n    <validation type=\"baml-validation\" ai_enhanced=\"true\"/>\n  </metadata>\n  <transformations applied=\"true\" xml_wrapping=\"true\" semantic_preservation=\"true\" context_aware=\"true\" ai_enhanced=\"true\"/>\n  <baml-content>\n    <boundaries>\n      <boundary name=\"data_boundary\" type=\"data\" ai_enhanced=\"true\">\n        <constraints>\n          <constraint type=\"validation\" operator=\"contains\" value=\"semantic_metadata\" ai_enforced=\"true\"/>\n        </constraints>\n      </boundary>\n      <boundary name=\"process_boundary\" type=\"process\" ai_enhanced=\"true\"/>\n    </boundaries>\n    <connections>\n      <connection source=\"data_boundary\" target=\"process_boundary\" type=\"data_flow\" direction=\"unidirectional\" ai_enhanced=\"true\"/>\n    </connections>\n  </baml-content>\n</baml-semantic-data>"
+    }
+  },
+  "version_compatibility": {
+    "baml_version": "1.0.0-fsl-integration",
+    "xml_version": "1.0.0-baml-xml",
+    "fsl_continuum_version": "3.0.0",
+    "backward_compatibility": true,
+    "forward_compatibility": true
+  },
+  "integration_points": {
+    "semantic_languages": {
+      "pareto_lang": {
+        "compatible": true,
+        "transformation_support": true,
+        "ai_integration": true
+      }
+    },
+    "fsl_continuum": {
+      "neural_field": {
+        "compatible": true,
+        "data_connection": true
+      },
+      "consciousness_routing": {
+        "compatible": true,
+        "routing_support": true
+      },
+      "context_intelligence": {
+        "compatible": true,
+        "intelligence_support": true
+      }
+    },
+    "ai_systems": {
+      "openai": {
+        "compatible": true,
+        "api_integration": true
+      },
+      "anthropic": {
+        "compatible": true,
+        "api_integration": true
+      }
+    }
+  }
+}

@@ -1,0 +1,720 @@
+{
+  "schema_version": "1.0.0-fsl-integration",
+  "baml_version": "compatible-with-boundaryml-latest",
+  "description": "BAML (BoundaryML) semantic schemas for FSL Continuum integration",
+  "schemas": {
+    "baml_root": {
+      "type": "object",
+      "required": ["version", "spec"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9]+)?$",
+          "description": "BAML version following semantic versioning"
+        },
+        "spec": {
+          "type": "string",
+          "pattern": "^BAML-[A-Z0-9-]+$",
+          "description": "BAML specification identifier"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description of BAML data"
+        },
+        "boundaries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/boundary"
+          },
+          "description": "Array of boundary definitions"
+        },
+        "connections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/connection"
+          },
+          "description": "Array of connection definitions"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/constraint"
+          },
+          "description": "Array of constraint definitions"
+        },
+        "xml_transformation": {
+          "type": "object",
+          "$ref": "#/schemas/xml_transformation_config",
+          "description": "XML transformation configuration"
+        },
+        "ai_integration": {
+          "type": "object",
+          "$ref": "#/schemas/ai_integration_config",
+          "description": "AI integration configuration"
+        },
+        "fsl_continuum_integration": {
+          "type": "object",
+          "$ref": "#/schemas/fsl_continuum_integration_config",
+          "description": "FSL Continuum integration configuration"
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Unique boundary name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["data", "process", "system", "interface", "service"],
+          "description": "Boundary type"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional boundary description"
+        },
+        "ai_enhanced": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether boundary is AI-enhanced"
+        },
+        "ai_monitored": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether boundary is AI-monitored"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/boundary_constraint"
+          },
+          "description": "Array of boundary-specific constraints"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "created_at": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Creation timestamp"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Last update timestamp"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of boundary tags"
+            },
+            "priority": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 5,
+              "description": "Boundary priority (1-10)"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Boundary owner"
+            }
+          },
+          "description": "Boundary metadata"
+        },
+        "parent_boundary": {
+          "type": "string",
+          "description": "Optional parent boundary reference"
+        },
+        "child_boundaries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of child boundary references"
+        }
+      }
+    },
+    "boundary_constraint": {
+      "type": "object",
+      "required": ["type", "operator"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["validation", "security", "performance", "compliance", "business"],
+          "description": "Constraint type"
+        },
+        "operator": {
+          "type": "string",
+          "enum": ["=", "!=", ">", "<", ">=", "<=", "in", "not_in", "contains", "not_contains", "matches", "regex"],
+          "description": "Constraint operator"
+        },
+        "value": {
+          "type": ["string", "number", "boolean", "array"],
+          "description": "Constraint value"
+        },
+        "description": {
+          "type": "string",
+          "description": "Constraint description"
+        },
+        "error_message": {
+          "type": "string",
+          "description": "Custom error message for constraint violation"
+        },
+        "ai_enforced": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether constraint is AI-enforced"
+        },
+        "auto_enforced": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether constraint is auto-enforced"
+        }
+      }
+    },
+    "connection": {
+      "type": "object",
+      "required": ["source", "target", "type"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Source boundary name"
+        },
+        "target": {
+          "type": "string",
+          "description": "Target boundary name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["data_flow", "control_flow", "semantic_link", "dependency", "event", "message"],
+          "description": "Connection type"
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["unidirectional", "bidirectional", "multi_directional"],
+          "default": "unidirectional",
+          "description": "Connection direction"
+        },
+        "description": {
+          "type": "string",
+          "description": "Connection description"
+        },
+        "ai_enhanced": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether connection is AI-enhanced"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 5,
+          "description": "Connection priority (1-10)"
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1,
+          "description": "Connection weight (0-1)"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["variable", "operator"],
+            "properties": {
+              "variable": {
+                "type": "string",
+                "description": "Condition variable"
+              },
+              "operator": {
+                "type": "string",
+                "enum": ["=", "!=", ">", "<", ">=", "<=", "in", "not_in"],
+                "description": "Condition operator"
+              },
+              "value": {
+                "type": ["string", "number", "boolean"],
+                "description": "Condition value"
+              }
+            }
+          },
+          "description": "Array of connection conditions"
+        },
+        "context": {
+          "type": "object",
+          "properties": {
+            "flow_type": {
+              "type": "string",
+              "description": "Flow type context"
+            },
+            "protocol": {
+              "type": "string",
+              "description": "Communication protocol"
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Connection timeout in seconds"
+            },
+            "retry_policy": {
+              "type": "object",
+              "properties": {
+                "max_retries": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10,
+                  "default": 3,
+                  "description": "Maximum retry attempts"
+                },
+                "backoff_strategy": {
+                  "type": "string",
+                  "enum": ["exponential", "linear", "fixed"],
+                  "default": "exponential",
+                  "description": "Backoff strategy"
+                }
+              }
+            }
+          },
+          "description": "Connection context"
+        }
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Unique constraint name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["boundary", "connection", "system", "global"],
+          "description": "Constraint scope type"
+        },
+        "description": {
+          "type": "string",
+          "description": "Constraint description"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of boundary/connection names this constraint applies to"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["variable", "operator"],
+            "properties": {
+              "variable": {
+                "type": "string",
+                "description": "Condition variable reference"
+              },
+              "operator": {
+                "type": "string",
+                "enum": ["=", "!=", ">", "<", ">=", "<=", "in", "not_in", "and", "or"],
+                "description": "Logical operator"
+              },
+              "value": {
+                "type": ["string", "number", "boolean", "array"],
+                "description": "Condition value"
+              },
+              "logical_operator": {
+                "type": "string",
+                "enum": ["AND", "OR"],
+                "default": "AND",
+                "description": "Logical operator for multiple conditions"
+              }
+            }
+          },
+          "description": "Array of constraint conditions"
+        },
+        "ai_monitored": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether constraint is AI-monitored"
+        },
+        "auto_enforced": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether constraint is auto-enforced"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "medium",
+          "description": "Constraint violation severity"
+        }
+      }
+    },
+    "xml_transformation_config": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether XML transformation is enabled"
+        },
+        "wrapper_tag": {
+          "type": "string",
+          "default": "baml-semantic-data",
+          "description": "Root XML wrapper tag"
+        },
+        "schema_version": {
+          "type": "string",
+          "default": "1.0.0-baml-xml",
+          "description": "XML schema version"
+        },
+        "preserve_semantics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to preserve semantic meaning in XML"
+        },
+        "context_aware": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether XML transformation is context-aware"
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "xml_structure_validation": {
+              "type": "boolean",
+              "default": true,
+              "description": "Validate XML structure"
+            },
+            "schema_compliance": {
+              "type": "boolean",
+              "default": true,
+              "description": "Validate XML schema compliance"
+            },
+            "semantic_preservation": {
+              "type": "boolean",
+              "default": true,
+              "description": "Validate semantic preservation"
+            }
+          }
+        }
+      }
+    },
+    "ai_integration_config": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether AI integration is enabled"
+        },
+        "semantic_analysis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether semantic analysis is enabled"
+        },
+        "context_awareness": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether AI context awareness is enabled"
+        },
+        "optimization": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether AI optimization is enabled"
+        },
+        "learning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether AI learning is enabled"
+        },
+        "prediction": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether AI prediction is enabled"
+        },
+        "models": {
+          "type": "object",
+          "properties": {
+            "semantic_analyzer": {
+              "type": "string",
+              "enum": ["transformer-based", "bert-based", "gpt-based"],
+              "default": "transformer-based",
+              "description": "Semantic analyzer model"
+            },
+            "boundary_detector": {
+              "type": "string",
+              "enum": ["neural-network", "random-forest", "svm"],
+              "default": "neural-network",
+              "description": "Boundary detection model"
+            },
+            "constraint_validator": {
+              "type": "string",
+              "enum": ["rule-based-ai", "ml-based", "hybrid"],
+              "default": "rule-based-ai",
+              "description": "Constraint validation model"
+            },
+            "connection_optimizer": {
+              "type": "string",
+              "enum": ["genetic-algorithm", "reinforcement-learning", "gradient-descent"],
+              "default": "genetic-algorithm",
+              "description": "Connection optimization model"
+            }
+          }
+        },
+        "features": {
+          "type": "object",
+          "properties": {
+            "boundary_pattern_recognition": {
+              "type": "boolean",
+              "default": true,
+              "description": "Boundary pattern recognition feature"
+            },
+            "connection_flow_optimization": {
+              "type": "boolean",
+              "default": true,
+              "description": "Connection flow optimization feature"
+            },
+            "constraint_adaptive_learning": {
+              "type": "boolean",
+              "default": true,
+              "description": "Constraint adaptive learning feature"
+            },
+            "context_aware_validation": {
+              "type": "boolean",
+              "default": true,
+              "description": "Context-aware validation feature"
+            }
+          }
+        },
+        "learning": {
+          "type": "object",
+          "properties": {
+            "federated_learning": {
+              "type": "boolean",
+              "default": true,
+              "description": "Federated learning enabled"
+            },
+            "continuous_learning": {
+              "type": "boolean",
+              "default": true,
+              "description": "Continuous learning enabled"
+            },
+            "adaptation_learning": {
+              "type": "boolean",
+              "default": true,
+              "description": "Adaptation learning enabled"
+            },
+            "pattern_learning": {
+              "type": "boolean",
+              "default": true,
+              "description": "Pattern learning enabled"
+            }
+          }
+        }
+      }
+    },
+    "fsl_continuum_integration_config": {
+      "type": "object",
+      "properties": {
+        "bridge_enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether semantic bridge is enabled"
+        },
+        "state_management": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether persistent state management is enabled"
+        },
+        "context_preservation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether context preservation is enabled"
+        },
+        "performance_monitoring": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether performance monitoring is enabled"
+        },
+        "integration_settings": {
+          "type": "object",
+          "properties": {
+            "neural_field_integration": {
+              "type": "boolean",
+              "default": true,
+              "description": "Neural field integration enabled"
+            },
+            "consciousness_routing": {
+              "type": "boolean",
+              "default": true,
+              "description": "Consciousness routing enabled"
+            },
+            "performance_metrics": {
+              "type": "boolean",
+              "default": true,
+              "description": "Performance metrics collection enabled"
+            },
+            "context_intelligence": {
+              "type": "boolean",
+              "default": true,
+              "description": "Context intelligence enabled"
+            }
+          }
+        },
+        "data_connections": {
+          "type": "object",
+          "properties": {
+            "baml_to_neural_field": {
+              "type": "boolean",
+              "default": true,
+              "description": "BAML to neural field data connection enabled"
+            },
+            "boundaries_to_consciousness": {
+              "type": "boolean",
+              "default": true,
+              "description": "Boundaries to consciousness data connection enabled"
+            },
+            "constraints_to_performance": {
+              "type": "boolean",
+              "default": true,
+              "description": "Constraints to performance data connection enabled"
+            },
+            "connections_to_context": {
+              "type": "boolean",
+              "default": true,
+              "description": "Connections to context data connection enabled"
+            }
+          }
+        },
+        "ai_integration": {
+          "type": "object",
+          "properties": {
+            "ai_bridge_enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "AI bridge enabled"
+            },
+            "ai_learning_integration": {
+              "type": "boolean",
+              "default": true,
+              "description": "AI learning integration enabled"
+            },
+            "ai_optimization_integration": {
+              "type": "boolean",
+              "default": true,
+              "description": "AI optimization integration enabled"
+            },
+            "ai_prediction_integration": {
+              "type": "boolean",
+              "default": true,
+              "description": "AI prediction integration enabled"
+            }
+          }
+        }
+      }
+    }
+  },
+  "validation_rules": {
+    "required_fields": {
+      "baml_root": ["version", "spec"],
+      "boundary": ["name", "type"],
+      "connection": ["source", "target", "type"],
+      "constraint": ["name", "type"]
+    },
+    "field_patterns": {
+      "version": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9]+)?$",
+      "spec": "^BAML-[A-Z0-9-]+$",
+      "boundary_name": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+      "constraint_name": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+    },
+    "value_constraints": {
+      "priority": {"min": 1, "max": 10},
+      "weight": {"min": 0, "max": 1},
+      "timeout": {"min": 1},
+      "max_retries": {"min": 0, "max": 10}
+    }
+  },
+  "examples": {
+    "basic_baml": {
+      "version": "1.0.0-fsl-integration",
+      "spec": "BAML-SEMANTIC-001",
+      "boundaries": [
+        {
+          "name": "data_boundary",
+          "type": "data",
+          "ai_enhanced": true
+        }
+      ]
+    },
+    "complex_baml": {
+      "version": "1.0.0-fsl-integration",
+      "spec": "BAML-SEMANTIC-001",
+      "boundaries": [
+        {
+          "name": "data_boundary",
+          "type": "data",
+          "ai_enhanced": true,
+          "constraints": [
+            {
+              "type": "validation",
+              "operator": "contains",
+              "value": "semantic_metadata",
+              "ai_enforced": true
+            }
+          ]
+        },
+        {
+          "name": "process_boundary",
+          "type": "process",
+          "ai_enhanced": true,
+          "constraints": [
+            {
+              "type": "performance",
+              "operator": ">",
+              "value": "min_process_time",
+              "ai_enforced": true
+            }
+          ]
+        }
+      ],
+      "connections": [
+        {
+          "source": "data_boundary",
+          "target": "process_boundary",
+          "type": "data_flow",
+          "direction": "unidirectional",
+          "ai_enhanced": true
+        }
+      ],
+      "constraints": [
+        {
+          "name": "semantic_boundary_constraint",
+          "type": "boundary",
+          "scope": ["data_boundary", "process_boundary"],
+          "conditions": [
+            {
+              "variable": "boundary.ai_enhanced",
+              "operator": "=",
+              "value": true
+            }
+          ],
+          "ai_monitored": true
+        }
+      ]
+    }
+  }
+}
