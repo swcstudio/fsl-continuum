@@ -1,30 +1,9 @@
 """
-FSL Continuum - Test Utilities
+FSL Continuum - Test Utils Module
 
-Utilities for semantic language testing.
+Re-exports BasicTestUtils (as TestUtils) from base_test_class for backward compatibility.
 """
 
-import logging
-from typing import Dict, Any, Optional
+from .base_test_class import BasicTestUtils as TestUtils
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-class TestUtils:
-    """Utilities for semantic language testing."""
-    
-    def __init__(self):
-        self.version = "1.0.0-test"
-        logger.info(f"TestUtils initialized (version {self.version})")
-    
-    def compare_data(self, data1: Dict[str, Any], data2: Dict[str, Any]) -> bool:
-        """Compare two data dictionaries."""
-        return data1 == data2
-    
-    def validate_structure(self, data: Dict[str, Any], expected_keys: list) -> bool:
-        """Validate data structure has expected keys."""
-        return all(key in data for key in expected_keys)
-    
-    def format_test_output(self, result: Any) -> str:
-        """Format test output for display."""
-        return str(result)
+__all__ = ['TestUtils']
