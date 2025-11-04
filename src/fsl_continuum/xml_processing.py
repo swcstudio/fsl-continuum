@@ -113,8 +113,15 @@ class XMLValidator:
         # First filter out declarations and DOCTYPE which don't need closing tags
         filtered_content = re.sub(r'<\?xml[^>]*\?>', '', xml_content)
         filtered_content = re.sub(r'<!DOCTYPE[^>]*>', '', filtered_content)
+    def _is_well_formed(self, xml_content: str) -> bool:
+        """Check if XML is well-formed."""
+        # Filter out declarations, DOCTYPE, CDATA, and self-closing tags
+        filtered_content = re.sub(r'<\?xml[^>]*\?>', '', xml_content)
+        filtered_content = re.sub(r'<!DOCTYPE[^>]*>', '', filtered_content)
+        filtered_content = re.sub(r'<!\[CDATA\[.*?\]\]>', '', filtered_content, flags=re.DOTALL)
         
-        open_tags = re.findall(r'<(\w+)[^/>]*>', filtered_content)
+        # Match opening tags (excluding self-closing)
+        open_tags = re.findall(r'<(\w+)[^/>]*(?<!/)>', filtered_content)
         close_tags = re.findall(r'</(\w+)>', filtered_content)
         
         return len(open_tags) == len(close_tags)
