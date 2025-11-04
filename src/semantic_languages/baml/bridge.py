@@ -26,6 +26,14 @@ class BAMLBridge:
         self.version = "1.0.0-fsl-integration"
         logger.info(f"BAMLBridge initialized (version {self.version})")
     
+    def get_status(self) -> Dict[str, Any]:
+        """Get bridge status."""
+        return {
+            "status": "active",
+            "version": self.version,
+            "language": "baml"
+        }
+    
     def bridge(self, baml_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> BridgeResult:
         """
         Bridge BAML data to Python.

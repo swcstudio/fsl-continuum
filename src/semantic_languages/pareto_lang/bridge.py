@@ -26,6 +26,14 @@ class ParetoLangBridge:
         self.version = "1.0.0-fsl-integration"
         logger.info(f"ParetoLangBridge initialized (version {self.version})")
     
+    def get_status(self) -> Dict[str, Any]:
+        """Get bridge status."""
+        return {
+            "status": "active",
+            "version": self.version,
+            "language": "pareto_lang"
+        }
+    
     def bridge(self, pareto_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> BridgeResult:
         """
         Bridge Pareto-Lang data to Python.

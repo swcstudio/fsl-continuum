@@ -467,6 +467,17 @@ class SemanticDataConnections:
                                pareto_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create unified semantic model."""
         return {"model_type": "unified_semantic", "model_data": {}}  # Placeholder
+    
+    def get_status(self) -> Dict[str, Any]:
+        """Get connections status."""
+        return {
+            "status": "active",
+            "active_connections_count": len(self.active_connections),
+            "baml_connections_count": len(self.baml_connections),
+            "pareto_lang_connections_count": len(self.pareto_lang_connections),
+            "fsl_continuum_connections_count": len(self.fsl_continuum_connections),
+            "ai_integration_connections_count": len(self.ai_integration_connections)
+        }
 
 # Export main connection class
 __all__ = [

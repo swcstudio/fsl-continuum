@@ -29,6 +29,14 @@ class ParetoLangParser:
         self.version = "1.0.0-fsl-integration"
         logger.info(f"ParetoLangParser initialized (version {self.version})")
     
+    def get_status(self) -> Dict[str, Any]:
+        """Get parser status."""
+        return {
+            "status": "active",
+            "version": self.version,
+            "language": "pareto_lang"
+        }
+    
     def parse(self, data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> ParseResult:
         """
         Parse Pareto-Lang semantic data.

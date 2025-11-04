@@ -26,6 +26,14 @@ class ParetoLangValidator:
         self.version = "1.0.0-fsl-integration"
         logger.info(f"ParetoLangValidator initialized (version {self.version})")
     
+    def get_status(self) -> Dict[str, Any]:
+        """Get validator status."""
+        return {
+            "status": "active",
+            "version": self.version,
+            "language": "pareto_lang"
+        }
+    
     def validate(self, data: Dict[str, Any], schema: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> ValidationResult:
         """
         Validate Pareto-Lang semantic data against a schema.

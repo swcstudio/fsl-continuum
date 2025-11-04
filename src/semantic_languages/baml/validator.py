@@ -26,6 +26,14 @@ class BAMLValidator:
         self.version = "1.0.0-fsl-integration"
         logger.info(f"BAMLValidator initialized (version {self.version})")
     
+    def get_status(self) -> Dict[str, Any]:
+        """Get validator status."""
+        return {
+            "status": "active",
+            "version": self.version,
+            "language": "baml"
+        }
+    
     def validate(self, data: Dict[str, Any], schema: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> ValidationResult:
         """
         Validate BAML semantic data against a schema.
