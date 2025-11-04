@@ -5,9 +5,8 @@ AI-powered processing, optimization, learning, and prediction capabilities
 for FSL Continuum semantic language operations.
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from datetime import datetime
-import asyncio
 
 
 class AIProcessor:
@@ -65,8 +64,6 @@ class AIOptimizer:
     
     def optimize(self, operation: Dict[str, Any], constraints: Dict[str, Any] = None) -> Dict[str, Any]:
         """Optimize operation using AI strategies."""
-        constraints = constraints or {}
-        
         optimization = {
             'original': operation,
             'optimized': True,
@@ -114,10 +111,13 @@ class AIOptimizer:
 class AILearningSystem:
     """AI learning and adaptation system."""
     
-    def __init__(self):
+    MAX_LEARNING_ENTRIES = 10000
+    
+    def __init__(self, max_learning_entries: int = None):
         self.learning_data = []
         self.models = {}
         self.adaptation_history = []
+        self.max_learning_entries = max_learning_entries or self.MAX_LEARNING_ENTRIES
     
     def learn_from_execution(self, execution_data: Dict[str, Any]) -> Dict[str, Any]:
         """Learn from operation execution data."""
@@ -130,8 +130,8 @@ class AILearningSystem:
         self.learning_data.append(learning_entry)
         
         # Keep only recent data
-        if len(self.learning_data) > 10000:
-            self.learning_data = self.learning_data[-10000:]
+        if len(self.learning_data) > self.max_learning_entries:
+            self.learning_data = self.learning_data[-self.max_learning_entries:]
         
         return {
             'learned': True,

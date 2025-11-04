@@ -108,23 +108,26 @@ class XMLValidator:
         return is_valid, errors
     
     def _is_well_formed(self, xml_content: str) -> bool:
-        """Check if XML is well-formed."""
-        # Basic well-formedness checks
-        # First filter out declarations and DOCTYPE which don't need closing tags
-        filtered_content = re.sub(r'<\?xml[^>]*\?>', '', xml_content)
-        filtered_content = re.sub(r'<!DOCTYPE[^>]*>', '', filtered_content)
-    def _is_well_formed(self, xml_content: str) -> bool:
-        """Check if XML is well-formed."""
-        # Filter out declarations, DOCTYPE, CDATA, and self-closing tags
+        """Check if XML is well-formed (properly nested and matched tags)."""
+        # Remove XML declaration, DOCTYPE, and CDATA sections
         filtered_content = re.sub(r'<\?xml[^>]*\?>', '', xml_content)
         filtered_content = re.sub(r'<!DOCTYPE[^>]*>', '', filtered_content)
         filtered_content = re.sub(r'<!\[CDATA\[.*?\]\]>', '', filtered_content, flags=re.DOTALL)
         
-        # Match opening tags (excluding self-closing)
-        open_tags = re.findall(r'<(\w+)[^/>]*(?<!/)>', filtered_content)
-        close_tags = re.findall(r'</(\w+)>', filtered_content)
-        
-        return len(open_tags) == len(close_tags)
+        # Find all tags (opening, closing, and self-closing)
+        tag_pattern = re.compile(r'<(/?)(\w+)[^>]*?(/?)>')
+        stack = []
+        for match in tag_pattern.finditer(filtered_content):
+            slash, tag, self_close = match.group(1), match.group(2), match.group(3)
+            if self_close:  # self-closing tag, ignore
+                continue
+            if not slash:  # opening tag
+                stack.append(tag)
+            else:  # closing tag
+                if not stack or stack[-1] != tag:
+                    return False
+                stack.pop()
+        return len(stack) == 0
     
     def _strict_validation(self, xml_content: str) -> List[str]:
         """Perform strict validation."""
@@ -147,14 +150,14 @@ class XMLValidator:
         """Validate XML against a schema."""
         errors = []
         
-        # Check required elements
+        # Check required elements - use regex for exact matching
         for element in schema.get('required_elements', []):
-            if f'<{element}' not in xml_content:
+            if not re.search(rf'<{element}\b', xml_content):
                 errors.append(f"Missing required element: {element}")
         
-        # Check forbidden elements
+        # Check forbidden elements - use regex for exact matching
         for element in schema.get('forbidden_elements', []):
-            if f'<{element}' in xml_content:
+            if re.search(rf'<{element}\b', xml_content):
                 errors.append(f"Forbidden element present: {element}")
         
         return len(errors) == 0, errors

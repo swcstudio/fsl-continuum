@@ -20,6 +20,9 @@ CONSCIOUSNESS_MULTIPLIERS = {
     'omega': 39.0625
 }
 
+# Valid Pareto operation categories
+PARETO_VALID_CATEGORIES = ['extract', 'filter', 'prioritize', 'group', 'compress', 'expand', 'restructure', 'format', 'analyze']
+
 
 # ===== BAML (Behavioral Analysis Markup Language) Classes =====
 
@@ -305,7 +308,7 @@ class ParetoLangValidator:
     """Validate Pareto operations."""
     
     def __init__(self):
-        self.valid_categories = ['extract', 'filter', 'prioritize', 'group', 'compress', 'expand', 'restructure', 'format', 'analyze']
+        self.valid_categories = PARETO_VALID_CATEGORIES
         self.valid_actions = ['key_points', 'criteria', 'content', 'field']
     
     def validate(self, operation: Dict[str, Any]) -> Tuple[bool, List[str]]:
@@ -615,7 +618,7 @@ class UnifiedXMLProcessor:
     def wrap_with_xml(self, data: Any, language: str, attributes: Dict[str, str] = None) -> str:
         """Wrap data with XML tags."""
         attrs = ' '.join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
-        xml = f'<semantic-data xmlns="{self.namespace}" language="{language}" {attrs}>\n'
+        xml = f'<semantic-data xmlns="{self.namespace}" language="{language}"{" " + attrs if attrs else ""}>\n'
         xml += f'  <![CDATA[{data}]]>\n'
         xml += '</semantic-data>'
         return xml
