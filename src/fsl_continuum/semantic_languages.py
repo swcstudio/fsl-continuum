@@ -146,7 +146,7 @@ class BAMLGenerator:
         template += prompt_config.get('content', '')
         
         for var in variables:
-            template += f"\n{{{{var}}}}"
+            template += f"\n{{{{{var}}}}}"
         
         self.template_count += 1
         return template
