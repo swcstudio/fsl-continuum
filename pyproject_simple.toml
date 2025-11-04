@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fsl-continuum"
+version = "3.0.0"
+description = "Terminal Velocity CI/CD with persistent state and AI-native features"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "FSL Continuum Team", email = "team@fsl-continuum.org"}
+]
+maintainers = [
+    {name = "FSL Continuum Team", email = "team@fsl-continuum.org"}
+]
+keywords = [
+    "ci-cd",
+    "devops", 
+    "terminal-velocity",
+    "flow-state",
+    "persistent-state",
+    "ai-native",
+    "quantum-computing",
+    "blockchain",
+    "4-market-integration"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Software Distribution",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "pydantic>=1.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.2.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.10.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.4.0",
+]
+test = [
+    "pytest>=7.2.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.10.0",
+    "factory-boy>=3.3.0",
+    "faker>=18.9.0",
+    "httpx>=0.24.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/fsl-continuum"
+Documentation = "https://fsl-continuum.readthedocs.io/"
+Repository = "https://github.com/your-org/fsl-continuum.git"
+
+[project.scripts]
+fsl = "fsl_continuum.cli:main"
+fsl-server = "fsl_continuum.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra -q --strict-markers --strict-config"
+markers = [
+    "unit: marks tests as unit tests",
+    "integration: marks tests as integration tests",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]

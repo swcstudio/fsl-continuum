@@ -1,0 +1,279 @@
+# FSL Continuum MANIFEST.in
+# Specifies additional files to include in source distribution
+
+# Include documentation files
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+include SECURITY.md
+include CODE_OF_CONDUCT.md
+
+# Include configuration files
+include pyproject.toml
+include setup.py
+include requirements.txt
+include requirements-dev.txt
+
+# Include all documentation recursively
+recursive-include docs *.md
+recursive-include docs *.rst
+recursive-include docs *.yaml
+recursive-include docs *.yml
+recursive-include docs *.json
+recursive-include docs *.txt
+recursive-include docs *.py
+
+# Include configuration files
+recursive-include config *.json
+recursive-include config *.yaml
+recursive-include config *.yml
+recursive-include config *.toml
+
+# Include examples
+recursive-include examples *.py
+recursive-include examples *.yaml
+recursive-include examples *.yml
+recursive-include examples *.md
+recursive-include examples *.json
+
+# Include scripts
+recursive-include scripts *.py
+recursive-include scripts *.sh
+recursive-include scripts *.bat
+recursive-include scripts *.yaml
+recursive-include scripts *.yml
+
+# Include templates
+recursive-include templates *.py
+recursive-include templates *.jinja2
+recursive-include templates *.html
+recursive-include templates *.css
+recursive-include templates *.js
+
+# Include CI/CD configuration
+recursive-include .github/workflows *.yml
+recursive-include .github/workflows *.yaml
+
+# Include container configuration
+include docker-compose.yml
+include docker-compose.prod.yml
+include docker-compose.dev.yml
+include Dockerfile
+include .dockerignore
+
+# Include deployment configuration
+recursive-include k8s *.yaml
+recursive-include k8s *.yml
+recursive-include k8s/*.json
+
+# Include monitoring configuration
+recursive-include monitoring *.yaml
+recursive-include monitoring *.yml
+recursive-include monitoring *.json
+
+# Include testing configuration
+recursive-include pytest.ini
+recursive-include tox.ini
+recursive-include .coveragerc
+
+# Exclude development and cache files
+exclude .git
+exclude .gitignore
+exclude .gitattributes
+exclude .gitmodules
+
+# Exclude Python cache and bytecode
+exclude __pycache__
+exclude *.pyc
+exclude *.pyo
+exclude *.pyd
+
+# Exclude virtual environments
+exclude venv
+exclude env
+exclude .venv
+exclude .env
+exclude .env.*
+exclude env.*
+exclude venv.*
+
+# Exclude IDE files
+exclude .vscode
+exclude .idea
+exclude *.swp
+exclude *.swo
+exclude *~
+
+# Exclude OS files
+exclude .DS_Store
+exclude .DS_Store?
+exclude ._*
+exclude .Spotlight-V100
+exclude .Trashes
+exclude Thumbs.db
+
+# Exclude build artifacts
+exclude build
+exclude dist
+exclude *.egg-info
+exclude .egg-info
+exclude .pytest_cache
+exclude .coverage
+exclude htmlcov
+exclude .mypy_cache
+exclude .tox
+
+# Exclude logs and temporary files
+exclude logs
+exclude *.log
+exclude *.pid
+exclude *.sock
+exclude temp
+exclude tmp
+
+# Exclude legacy and backup files
+exclude .legacy
+exclude *.bak
+exclude *.backup
+exclude *.old
+
+# Exclude security files
+exclude *.pem
+exclude *.key
+exclude secrets
+exclude .wallets
+
+# Exclude large binary files
+exclude *.zip
+exclude *.tar.gz
+exclude *.tgz
+exclude *.rar
+exclude *.7z
+
+# Include only specific large files if needed
+# include data/production.db
+
+# Include FSL Continuum specific files
+include fsl_continuum/py.typed
+recursive-include fsl_continuum/*.pyi
+recursive-include fsl_continuum/**/*.pyi
+
+# Include semantic language schemas
+recursive-include src/semantic_languages/config/*.json
+recursive-include src/semantic_languages/config/*.yaml
+recursive-include src/semantic_languages/config/*.yml
+
+# Include test fixtures
+recursive-include src/tests/fixtures/*.json
+recursive-include src/tests/fixtures/*.yaml
+recursive-include src/tests/fixtures/*.yml
+recursive-include src/tests/fixtures/*.xml
+
+# Include test reports
+recursive-include src/tests/output/*.json
+recursive-include src/tests/output/*.xml
+recursive-include src/tests/output/*.html
+
+# Include performance benchmarks
+recursive-include src/tests/performance/*.json
+recursive-include src/tests/performance/*.csv
+
+# Include AI model files
+recursive-include src/ai/models/*.pkl
+recursive-include src/ai/models/*.joblib
+recursive-include src/ai/models/*.h5
+
+# Include quantum circuit files
+recursive-include src/quantum/circuits/*.qasm
+recursive-include src/quantum/circuits/*.py
+
+# Include blockchain smart contracts
+recursive-include src/blockchain/contracts/*.sol
+recursive-include src/blockchain/contracts/*.abi
+
+# Include mobile app files
+recursive-include mobile/src/**/*.dart
+recursive-include mobile/src/**/*.js
+recursive-include mobile/lib/**/*.apk
+
+# Include desktop app files
+recursive-include desktop/src/**/*.py
+recursive-include desktop/src/**/*.js
+recursive-include desktop/dist/**/*.exe
+
+# Include web app files
+recursive-include web/src/**/*.js
+recursive-include web/src/**/*.ts
+recursive-include web/dist/**/*.html
+recursive-include web/dist/**/*.css
+
+# Include documentation static assets
+recursive-include docs/static/**/*.css
+recursive-include docs/static/**/*.js
+recursive-include docs/static/**/*.png
+recursive-include docs/static/**/*.jpg
+recursive-include docs/static/**/*.svg
+
+# Include API documentation
+recursive-include docs/api/**/*.json
+recursive-include docs/api/**/*.yaml
+
+# Include configuration templates
+recursive-include config/templates/*.json
+recursive-include config/templates/*.yaml
+recursive-include config/templates/*.yml
+recursive-include config/templates/*.toml
+
+# Include deployment scripts
+recursive-include scripts/deploy/*.sh
+recursive-include scripts/deploy/*.bat
+recursive-include scripts/deploy/*.py
+
+# Include backup scripts
+recursive-include scripts/backup/*.sh
+recursive-include scripts/backup/*.py
+
+# Include monitoring scripts
+recursive-include scripts/monitoring/*.sh
+recursive-include scripts/monitoring/*.py
+
+# Include security scripts
+recursive-include scripts/security/*.sh
+recursive-include scripts/security/*.py
+
+# Include migration scripts
+recursive-include scripts/migrate/*.sh
+recursive-include scripts/migrate/*.py
+recursive-include scripts/migrate/*.sql
+
+# Include performance testing scripts
+recursive-include scripts/performance/*.sh
+recursive-include scripts/performance/*.py
+recursive-include scripts/performance/*.js
+
+# Include load testing scripts
+recursive-include scripts/load/*.sh
+recursive-include scripts/load/*.py
+recursive-include scripts/load/*.js
+
+# Include integration testing scripts
+recursive-include scripts/integration/*.sh
+recursive-include scripts/integration/*.py
+
+# Include end-to-end testing scripts
+recursive-include scripts/e2e/*.sh
+recursive-include scripts/e2e/*.py
+recursive-include scripts/e2e/*.js
+
+# Include continuous integration scripts
+recursive-include scripts/ci/*.sh
+recursive-include scripts/ci/*.py
+recursive-include scripts/ci/*.yaml
+recursive-include scripts/ci/*.yml
+
+# Include continuous deployment scripts
+recursive-include scripts/cd/*.sh
+recursive-include scripts/cd/*.py
+recursive-include scripts/cd/*.yaml
+recursive-include scripts/cd/*.yml
