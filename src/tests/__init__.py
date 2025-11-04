@@ -18,10 +18,16 @@ try:
     from .test_framework import (
         SemanticLanguageBaseTest,
         TestDataManager,
+        TestUtils,
+        MockComponents,
+        TestConfig
     )
 except ImportError:
     SemanticLanguageBaseTest = None
     TestDataManager = None
+    TestUtils = None
+    MockComponents = None
+    TestConfig = None
 
 # Test automation modules
 try:
@@ -123,6 +129,9 @@ __all__ = [
     'SemanticLanguageTestFramework',
     'SemanticLanguageBaseTest',
     'TestDataManager',
+    'TestUtils',
+    'MockComponents',
+    'TestConfig',
     
     # Automation classes
     'TestAutomationFramework',
