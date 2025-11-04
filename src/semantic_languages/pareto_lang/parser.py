@@ -4,10 +4,9 @@ FSL Continuum - Pareto-Lang Parser
 Core parser for Pareto-Lang semantic language with XML transformation support.
 """
 
-import json
 import logging
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
