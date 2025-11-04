@@ -31,10 +31,12 @@ class XMLProcessor:
         tag_name = tags.get('root', 'content')
         attributes = tags.get('attributes', {})
         
-        attr_str = ' '.join([f'{k}="{v}"' for k, v in attributes.items()])
-        namespace_attr = f'xmlns="{self.namespace}"'
+        # Build attribute string properly to avoid extra spaces
+        attr_parts = [f'xmlns="{self.namespace}"']
+        attr_parts.extend([f'{k}="{v}"' for k, v in attributes.items()])
+        attr_str = ' '.join(attr_parts)
         
-        xml = f'<{tag_name} {namespace_attr} {attr_str}>\n'
+        xml = f'<{tag_name} {attr_str}>\n'
         xml += f'  <![CDATA[{content}]]>\n'
         xml += f'</{tag_name}>'
         
@@ -108,11 +110,12 @@ class XMLValidator:
     def _is_well_formed(self, xml_content: str) -> bool:
         """Check if XML is well-formed."""
         # Basic well-formedness checks
-        open_tags = re.findall(r'<(\w+)[^/>]*>', xml_content)
-        close_tags = re.findall(r'</(\w+)>', xml_content)
+        # First filter out declarations and DOCTYPE which don't need closing tags
+        filtered_content = re.sub(r'<\?xml[^>]*\?>', '', xml_content)
+        filtered_content = re.sub(r'<!DOCTYPE[^>]*>', '', filtered_content)
         
-        # Check if tags match
-        open_tags = [tag for tag in open_tags if tag not in ['?xml', '!DOCTYPE']]
+        open_tags = re.findall(r'<(\w+)[^/>]*>', filtered_content)
+        close_tags = re.findall(r'</(\w+)>', filtered_content)
         
         return len(open_tags) == len(close_tags)
     
@@ -120,10 +123,16 @@ class XMLValidator:
         """Perform strict validation."""
         errors = []
         
-        # Check for proper indentation (basic check)
+        # Check for consistent indentation (basic check for multi-line XML)
         lines = xml_content.split('\n')
-        if len(lines) > 1 and not any(line.startswith(' ') or line.startswith('\t') for line in lines[1:-1]):
-            errors.append("Improper indentation")
+        if len(lines) > 2:
+            # Check if nested elements have consistent indentation
+            indented_lines = [line for line in lines[1:-1] if line.strip()]
+            if indented_lines:
+                # At least some lines should be indented for proper formatting
+                has_indentation = any(line.startswith((' ', '\t')) for line in indented_lines)
+                if not has_indentation and len(indented_lines) > 1:
+                    errors.append("Improper indentation for multi-line XML")
         
         return errors
     
