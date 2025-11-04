@@ -15,7 +15,7 @@
 > 💡 **Quick Start**: New to this version? Check [VERSION](VERSION) for commit details and [FEATURES.md](FEATURES.md) for the complete list of 15 workflows, 23 tools, and all integrations available at this version.
 
 ### Migration Summary
-- ✅ **Phase 1:** 13 Workflows migrated (fsl-*)
+- ✅ **Phase 1:** 15 Workflows migrated (14 fsl-*, 1 continuum-orchestrator.yml)
 - ✅ **Phase 2:** 23 Tools organized (fsl-pipelines/)
 - ✅ **Phase 3:** 18 Documentation files organized
 - ✅ **Phase 4:** 8 Integrations tested and documented

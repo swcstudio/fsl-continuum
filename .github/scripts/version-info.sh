@@ -33,8 +33,7 @@ show_summary() {
     
     # Extract version from VERSION file
     if [ -f "$GITHUB_DIR/VERSION" ]; then
-        VERSION=$(grep "^**v" "$GITHUB_DIR/VERSION" | head -1 | sed 's/\*\*//g')
-        COMMIT=$(grep "^- \*\*Commit Hash\*\*" "$GITHUB_DIR/VERSION" | cut -d: -f2 | xargs)
+        VERSION=$(grep "\*\*v" "$GITHUB_DIR/VERSION" | head -1 | sed 's/\*\*//g')
         SHORT_COMMIT=$(grep "^- \*\*Short Hash\*\*" "$GITHUB_DIR/VERSION" | cut -d: -f2 | xargs)
         
         echo "Version: $VERSION"
