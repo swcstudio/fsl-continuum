@@ -60,7 +60,7 @@ class TerminalVelocity:
         """Calculate terminal velocity.
         
         Uses a growth-based model where velocity increases with uptime.
-        Formula: velocity = (BASE + uptime * acceleration) * flow_multiplier (when in flow state)
+        Formula: velocity = min((BASE + uptime * acceleration) * flow_multiplier, max_velocity)
         
         Returns:
             Current velocity (higher = better performance)
