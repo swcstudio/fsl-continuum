@@ -188,3 +188,17 @@ desktop/build/
 *.exe
 *.dmg
 *.deb
+
+# Backup files
+*.backup
+*.backup[0-9]
+*.backup[0-9][0-9]
+*_fixed.py
+*_fixed.toml
+*_original.py
+*_original.toml
+*_new.py
+*_new.toml
+*_simple.py
+*_simple.toml
+*_simple.ini
