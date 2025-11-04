@@ -7,8 +7,6 @@ FSL Continuum semantic language components.
 
 from typing import Dict, Any, List, Optional, Callable, Tuple
 from datetime import datetime
-import asyncio
-import json
 
 
 class SemanticLanguageBaseTest:
@@ -141,10 +139,15 @@ class TestDataManager:
             'action': 'key_points'
         }
     
-    def _generate_xml_test_data(self, config: Dict[str, Any]) -> str:
+    def _generate_xml_test_data(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Generate XML test data."""
         namespace = config.get('namespace', 'http://test.example.com')
-        return f'<test xmlns="{namespace}"><content>Test content</content></test>'
+        xml_string = f'<test xmlns="{namespace}"><content>Test content</content></test>'
+        return {
+            'type': 'xml',
+            'content': xml_string,
+            'namespace': namespace
+        }
     
     def get_test_data(self, name: str) -> Optional[Dict[str, Any]]:
         """Get test data by name."""
