@@ -1,7 +1,0 @@
-[uvx]
-python-version = "3.11"
-cache-dir = ".uvx/cache"
-env-dir = ".uvx/envs"
-
-[pip]
-index-url = "https://pypi.org/simple"
