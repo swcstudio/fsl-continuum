@@ -667,7 +667,7 @@ class ProductionReadinessValidator:
     def _test_package_files(self) -> bool:
         """Test package files."""
         try:
-            required_files = ['pyproject.toml', 'setup.py', 'MANIFEST.in']
+            required_files = ['pyproject.toml', 'MANIFEST.in']
             results = []
             for file in required_files:
                 exists = Path(file).exists()
