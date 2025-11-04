@@ -11,6 +11,16 @@ import re
 import json
 
 
+# Consciousness level multipliers for quantum-aware operations
+CONSCIOUSNESS_MULTIPLIERS = {
+    'alpha': 1.0,
+    'beta': 2.5,
+    'gamma': 6.25,
+    'delta': 15.625,
+    'omega': 39.0625
+}
+
+
 # ===== BAML (Behavioral Analysis Markup Language) Classes =====
 
 class BAMLParser:
@@ -160,23 +170,19 @@ class BAMLInterpreter:
     
     def __init__(self):
         self.execution_history = []
-        self.consciousness_multipliers = {
-            'alpha': 1.0,
-            'beta': 2.5,
-            'gamma': 6.25,
-            'delta': 15.625,
-            'omega': 39.0625
-        }
+        self.consciousness_multipliers = CONSCIOUSNESS_MULTIPLIERS
     
     def execute(self, template: str, context: Dict[str, Any], consciousness_level: str = 'alpha') -> Dict[str, Any]:
         """Execute a BAML prompt with context."""
         # Apply consciousness level multiplier
         multiplier = self.consciousness_multipliers.get(consciousness_level, 1.0)
         
-        # Replace variables in template
+        # Replace variables in template using regex with word boundaries for safety
         result = template
         for key, value in context.items():
-            result = result.replace(f"{{{{{key}}}}}", str(value))
+            # Use regex to ensure we only replace exact variable matches
+            pattern = r'\{\{' + re.escape(key) + r'\}\}'
+            result = re.sub(pattern, str(value), result)
         
         execution = {
             'template': template,
@@ -566,13 +572,7 @@ class SemanticAIOptimizer:
     
     def __init__(self):
         self.optimization_history = []
-        self.consciousness_multipliers = {
-            'alpha': 1.0,
-            'beta': 2.5,
-            'gamma': 6.25,
-            'delta': 15.625,
-            'omega': 39.0625
-        }
+        self.consciousness_multipliers = CONSCIOUSNESS_MULTIPLIERS
     
     def optimize(self, operation: Dict[str, Any], consciousness_level: str = 'beta') -> Dict[str, Any]:
         """Optimize an operation with consciousness-level enhancements."""
