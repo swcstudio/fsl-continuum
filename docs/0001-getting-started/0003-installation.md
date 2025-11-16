@@ -44,20 +44,6 @@ pip install fsl-continuum
 fsl --version
 ```
 
-## Quick Setup with Installer
-
-For a faster, one-command setup:
-
-```bash
-# Download and run installer
-curl -sSL https://install.fsl-continuum.sh | bash
-
-# Or download first
-wget https://install.fsl-continuum.sh
-chmod +x install.fsl-continuum.sh
-./install.fsl-continuum.sh
-```
-
 ## Docker Installation
 
 ```bash

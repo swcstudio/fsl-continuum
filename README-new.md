@@ -93,11 +93,14 @@ For comprehensive documentation, see our [docs/](docs/) directory with professio
 
 ## 🚀 Quick Start
 
-### One-Command Installation
+### Installation
 
 ```bash
-# Install FSL Continuum with all dependencies
-curl -sSL https://install.fsl-continuum.sh | bash
+# Clone and install FSL Continuum
+git clone https://github.com/swcstudio/fsl-continuum.git
+cd fsl-continuum
+pip install -r requirements.txt
+pip install -e .
 ```
 
 ### Your First Pipeline
