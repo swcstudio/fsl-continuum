@@ -4,8 +4,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/your-org/fsl-continuum)
-[![Coverage](https://img.shields.io/badge/coverage-95%25-green.svg)](https://github.com/your-org/fsl-continuum)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/swcstudio/fsl-continuum)
+[![Coverage](https://img.shields.io/badge/coverage-95%25-green.svg)](https://github.com/swcstudio/fsl-continuum)
 
 **FSL Continuum** is the world's first flow-state-optimized CI/CD platform. Unlike stateless pipelines that reset after each run, **FSL Continuum maintains persistent state**, enabling **terminal velocity** - maximum sustainable development speed with zero friction.
 
@@ -72,7 +72,7 @@ Every feature integrates best practices from all dominant markets:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/fsl-continuum.git
+git clone https://github.com/swcstudio/fsl-continuum.git
 cd fsl-continuum
 
 # Install dependencies
