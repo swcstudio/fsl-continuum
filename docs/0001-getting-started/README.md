@@ -11,8 +11,13 @@ Welcome to FSL Continuum! This section will help you get up and running quickly.
 ## 🚀 Quick Path
 
 ```bash
-# 1. Install FSL Continuum
-curl -sSL https://install.fsl-continuum.sh | bash
+# 1. Install FSL Continuum via pip
+pip install fsl-continuum
+
+# Or install from source
+git clone https://github.com/your-org/fsl-continuum.git
+cd fsl-continuum
+pip install -e .
 
 # 2. Initialize in your project
 cd your-project
